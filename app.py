@@ -13,8 +13,8 @@ from os import _exit
 from time import time
 from json import loads, load, dump
 from logging import getLogger
-from quart import Quart, request
 from subprocess import Popen, DEVNULL
+from quart import Quart, request
 
 client = discord.Client(intents=discord.Intents.all())
 tree = app_commands.CommandTree(client)
@@ -79,8 +79,7 @@ def dump_data_json(data:dict):
     with open("data.json", "w") as f: dump(data, f)
 def add_user_to_data(data:dict, user:discord.User) -> dict:
     if str(user.id) not in data.keys(): data[str(user.id)] = {
-        "pings": [],
-        "reminds": []
+        "pings": []
     }
     return data
 
@@ -94,7 +93,7 @@ async def on_ready():
 
     await client.change_presence(status=discord.Status.online)
     update_status.start()
-    check_reminds.start()
+    # check_reminds.start()
 
     print(f"Logged in as: {client.user}")
 @client.event
@@ -132,16 +131,16 @@ async def update_status():
    
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
-@tasks.loop(seconds=5)
-async def check_reminds():
-    data = get_data_json()
+# @tasks.loop(seconds=5)
+# async def check_reminds():
+#     data = get_data_json()
 
-    for k, v in data.items():
-        for i in v["reminds"]:
-            if i["time"]<time(): 
-                await (await client.fetch_user(k)).send("Reminder! "+("Reason: "+i["reason"]+". " if i["reason"] else "")+(await (await client.fetch_channel(i["channel"])).fetch_message(i["message"])).jump_url)
-                data[k]["reminds"].remove([j for j in data[k]["reminds"] if j["time"]==i["time"]][0])
-                dump_data_json(data)
+#     for k, v in data.items():
+#         for i in v["reminds"]:
+#             if i["time"]<time(): 
+#                 await (await client.fetch_user(k)).send("Reminder! "+("Reason: "+i["reason"]+". " if i["reason"] else "")+(await (await client.fetch_channel(i["channel"])).fetch_message(i["message"])).jump_url)
+#                 data[k]["reminds"].remove([j for j in data[k]["reminds"] if j["time"]==i["time"]][0])
+#                 dump_data_json(data)
 
 @server.after_serving
 async def shutdown(): 
@@ -155,35 +154,34 @@ async def macro(interaction:interactions.Interaction, name:app_commands.Choice[s
     if not text.startswith("@"): await interaction.response.send_message(content=text)
     else: await interaction.response.send_message(content=MACROS[text.removeprefix("@")])
 
-@tree.command(name="remindme", description="Pings you after a certain period of time", guild=GUILD_OBJECT)
-@app_commands.describe(period="A period of time, written in a \"{time}(s/m/h/d)\" format")
-@app_commands.describe(reason="A optional reason for the reminder")
-async def remindme(interaction:interactions.Interaction, period:str, reason:str=""):
-    if not period[:-1].isnumeric() or period[-1] not in ("s", "m", "h", "d"): 
-        await interaction.response.send_message(content="Wrong period format: `"+period+"`", ephemeral=True)
-        return
+# @tree.command(name="remindme", description="Pings you after a certain period of time", guild=GUILD_OBJECT)
+# @app_commands.describe(period="A period of time, written in a \"{time}(s/m/h/d)\" format")
+# @app_commands.describe(reason="A optional reason for the reminder")
+# async def remindme(interaction:interactions.Interaction, period:str, reason:str=""):
+#     if not period[:-1].isnumeric() or period[-1] not in ("s", "m", "h", "d"): 
+#         await interaction.response.send_message(content="Wrong period format: `"+period+"`", ephemeral=True)
+#         return
 
-    data = get_data_json()
-    data = add_user_to_data(data, interaction.user)
+#     data = get_data_json()
+#     data = add_user_to_data(data, interaction.user)
 
-    remindtime = 0
-    if period.endswith("s"): remindtime = time()+int(period.removesuffix("s"))
-    elif period.endswith("m"): remindtime = time()+(60*int(period.removesuffix("m")))
-    elif period.endswith("h"): remindtime = time()+(3600*int(period.removesuffix("h")))
-    elif period.endswith("d"): remindtime = time()+(86400*int(period.removesuffix("d")))
+#     remindtime = 0
+#     if period.endswith("s"): remindtime = time()+int(period.removesuffix("s"))
+#     elif period.endswith("m"): remindtime = time()+(60*int(period.removesuffix("m")))
+#     elif period.endswith("h"): remindtime = time()+(3600*int(period.removesuffix("h")))
+#     elif period.endswith("d"): remindtime = time()+(86400*int(period.removesuffix("d")))
 
-    # TODO: fix
-    if reason: message = await interaction.response.send_message(content=f"Successfully added a reminder for `{period}` with reason `{reason}`!")
-    else: message = await interaction.response.send_message(content=f"Successfully added a reminder for `{period}`!")
+#     if reason: message = await interaction.response.send_message(content=f"Successfully added a reminder for `{period}` with reason `{reason}`!")
+#     else: message = await interaction.response.send_message(content=f"Successfully added a reminder for `{period}`!")
 
-    data[str(interaction.user.id)]["reminds"].append({
-        "time": remindtime,
-        "reason": reason,
-        "channel": interaction.channel.id,
-        "message": message.message.id,
-    })
+#     data[str(interaction.user.id)]["reminds"].append({
+#         "time": remindtime,
+#         "reason": reason,
+#         "channel": interaction.channel.id,
+#         "message": message.message.id,
+#     })
 
-    dump_data_json(data)
+#     dump_data_json(data)
 
 @tree.command(name="pings", description="Set your string pings", guild=GUILD_OBJECT)
 @app_commands.describe(pings="Words that will ping you, comma seperated, case insensitive.")
