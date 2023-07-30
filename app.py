@@ -194,7 +194,7 @@ async def editpings(interaction:interactions.Interaction, pings:str):
     data[str(interaction.user.id)]["pings"] = [i.lower() for i in pings.replace(", ", ",").split(",")]
     dump_data_json(data)
 
-    await interaction.response.send_message(content="Pings set! Your new pings are: `"+",".join(data[interaction.user.id]["pings"])+"`.", ephemeral=True)
+    await interaction.response.send_message(content="Pings set! Your new pings are: `"+",".join(data[str(interaction.user.id)]["pings"])+"`.", ephemeral=True)
 
 @server.post("/translators")
 async def on_translator_webhook():
