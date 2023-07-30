@@ -66,7 +66,7 @@ https://media.discordapp.net/attachments/758096127982829659/802983225126813706/O
     "wiki": "**Modern Modpacks & Hellish Mods have a documentation/wiki.** Link: https://wiki.modernmodpacks.site",
     "kofi": "If you want to support us monetarily, you can do it on your ko-fi: https://ko-fi.com/modernmodpacks. Note: you **will not** get anything in return.",
     "mpd": "Some Modern Modpacks devlogs are being posted on the Minecraft Pack Development server instead: https://discord.gg/R4tBduGsne",
-    "mmc": "The worse MM: https://discord.gg/moddedmc",
+    # "mmc": "The worse MM: https://discord.gg/moddedmc",
     "gtb": "Official GregTech: Beyond discord server - https://discord.gg/sG6NZ7NaeC",
     "mm": "MM stands for Modern Modpacks, not Modded Minecraft, not Masterful Machinery, Modern Modpacks. Please for the love of god stop using that abbreviation incorrectly ||(or I will personally come into your house and shove a 1000MM ruler up your ass)||.",
 
@@ -81,8 +81,8 @@ https://media.discordapp.net/attachments/758096127982829659/802983225126813706/O
     "donate": "@kofi",
     "support": "@kofi",
     "devlogs": "@mpd",
-    "theworsemm": "@mmc",
-    "notmm": "@mmc",
+    # "theworsemm": "@mmc",
+    # "notmm": "@mmc",
     "beyond": "@gtb",
     "abbreviations": "@mm",
     "monkeybruh": "@bruhmonkey",
@@ -174,7 +174,7 @@ async def shutdown():
     _exit(0)
 
 @tree.command(name="macro", description="Sends a quick macro message to the chat", guild=GUILD_OBJECT)
-@app_commands.choices(name=[app_commands.Choice(name=i[:24], value=i) for i in MACROS.keys()])
+@app_commands.choices(name=[app_commands.Choice(name=i, value=i) for i in MACROS.keys()])
 async def macro(interaction:interactions.Interaction, name:app_commands.Choice[str]):
     text = MACROS[name.value]
     if not text.startswith("@"): await interaction.response.send_message(content=text)
