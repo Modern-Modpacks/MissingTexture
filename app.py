@@ -9,7 +9,7 @@ from discord import app_commands, interactions
 from discord.ext import tasks
 from re import search, IGNORECASE
 from sys import argv
-from os import _exit
+from os import _exit, path
 from time import time
 from json import loads, load, dump
 from logging import getLogger
@@ -74,7 +74,10 @@ GUILD_OBJECT = discord.Object(1025316079226064966)
 statusi = 0
 
 async def get_guild() -> discord.Guild: return await client.fetch_guild(GUILD_OBJECT.id)
-def get_data_json() -> dict: return load(open("data.json"))
+def get_data_json() -> dict: 
+    if not path.exists("data.json"):
+        with open("data.json", "w+") as f: f.write("{}")
+    return load(open("data.json"))
 def dump_data_json(data:dict): 
     with open("data.json", "w") as f: dump(data, f)
 def add_user_to_data(data:dict, user:discord.User) -> dict:

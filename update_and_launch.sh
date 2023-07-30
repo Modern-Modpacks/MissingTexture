@@ -2,4 +2,4 @@
 
 git pull
 pip install -r requirements.txt
-python3 app.py
+python3 app.py --sync
