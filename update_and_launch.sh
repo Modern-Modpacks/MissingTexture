@@ -2,5 +2,5 @@
 
 git pull
 pip install -r requirements.txt
-killall python
-python app.py --sync
+killall python3
+python3 app.py --sync
