@@ -136,7 +136,7 @@ async def on_message(message:discord.Message):
         keyword = k.removeprefix("^")
         matchh = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
 
-        if matchh and f":{keyword}:" not in message.content.lower():
+        if matchh:
             if not k.startswith("^") or message.channel.id==CHANNELS["memes"]: 
                 if not v.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{v}", mention_author=False)
                 else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name==v.removeprefix("$")], mention_author=False)
@@ -144,7 +144,7 @@ async def on_message(message:discord.Message):
     data = get_data_json()
     for k, v in data.items():
         for i in v["pings"]:
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE): 
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=k: 
                 await (await client.fetch_user(k)).send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
 
