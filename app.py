@@ -34,8 +34,7 @@ RESPONSES = {
 
     "^rftools": "RFTools is a mod by Vazkii",
     "^greg": "STOP POSTING ABOUT GREGTECH, I'M TIRED OF SEEING IT! My friends on reddit send me memes, on discord it's fucking memes - I was in a subreddit, right? and ALLLLLLLLL of the POSTS are just GregTech stuff. I- I showed my Champion underwear to my girlfriend, and the logo I flipped it and I said, \"Hey babe: When the underwear greg :joy: :joy: :joy:\"",
-    "^blunder": "5 stages of grief",
-    "^:blunder:": "5 stages of grief",
+    "^5 stages of grief": "<:blunder:1119338458335416422:>",
 
     "^1.18": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.18 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
     "^1.19": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.19 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
@@ -69,7 +68,7 @@ https://media.discordapp.net/attachments/758096127982829659/802983225126813706/O
     "wiki": "**Modern Modpacks & Hellish Mods have a documentation/wiki.** Link: https://wiki.modernmodpacks.site",
     "kofi": "If you want to support us monetarily, you can do it on your ko-fi: https://ko-fi.com/modernmodpacks. Note: you **will not** get anything in return.",
     "mpd": "Some Modern Modpacks devlogs are being posted on the Minecraft Pack Development server instead: https://discord.gg/R4tBduGsne",
-    # "mmc": "The worse MM: https://discord.gg/moddedmc",
+    "mmc": "The worse MM: https://discord.gg/moddedmc",
     "gtb": "Official GregTech: Beyond discord server - https://discord.gg/sG6NZ7NaeC",
     "mm": "MM stands for Modern Modpacks, not Modded Minecraft, not Masterful Machinery, Modern Modpacks. Please for the love of god stop using that abbreviation incorrectly ||(or I will personally come into your house and shove a 1000MM ruler up your ass)||.",
 
@@ -84,8 +83,8 @@ https://media.discordapp.net/attachments/758096127982829659/802983225126813706/O
     "donate": "@kofi",
     "support": "@kofi",
     "devlogs": "@mpd",
-    # "theworsemm": "@mmc",
-    # "notmm": "@mmc",
+    "theworsemm": "@mmc",
+    "notmm": "@mmc",
     "beyond": "@gtb",
     "abbreviations": "@mm",
     "monkeybruh": "@bruhmonkey",
@@ -177,9 +176,19 @@ async def shutdown():
     _exit(0)
 
 @tree.command(name="macro", description="Sends a quick macro message to the chat", guild=GUILD_OBJECT)
-@app_commands.choices(name=[app_commands.Choice(name=i, value=i) for i in MACROS.keys()])
-async def macro(interaction:interactions.Interaction, name:app_commands.Choice[str]):
+@app_commands.describe(name="Name of the macro, type /macro list to see all of them.")
+async def macro(interaction:interactions.Interaction, name:str):
+    name = name.lower()
+
+    if name=="list":
+        await interaction.response.send_message(content=" | ".join(MACROS.keys()), ephemeral=True)
+        return
+    if name not in MACROS.keys():
+        await interaction.response.send_message(content="Unknown macro: `"+text+"`", ephemeral=True)
+        return
+
     text = MACROS[name.value]
+
     if not text.startswith("@"): await interaction.response.send_message(content=text)
     else: await interaction.response.send_message(content=MACROS[text.removeprefix("@")])
 
