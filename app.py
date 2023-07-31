@@ -136,7 +136,7 @@ async def on_message(message:discord.Message):
         keyword = k.removeprefix("^")
         matchh = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
 
-        if matchh:
+        if matchh and f":{keyword}:" not in message.content.lower():
             if not k.startswith("^") or message.channel.id==CHANNELS["memes"]: 
                 if not v.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{v}", mention_author=False)
                 else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name==v.removeprefix("$")], mention_author=False)
