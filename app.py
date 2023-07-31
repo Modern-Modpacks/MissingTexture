@@ -184,7 +184,7 @@ async def macro(interaction:interactions.Interaction, name:str):
         await interaction.response.send_message(content=" | ".join(MACROS.keys()), ephemeral=True)
         return
     if name not in MACROS.keys():
-        await interaction.response.send_message(content="Unknown macro: `"+text+"`", ephemeral=True)
+        await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
         return
 
     text = MACROS[name]
