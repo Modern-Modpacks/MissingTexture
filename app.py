@@ -30,6 +30,7 @@ RESPONSES = {
 
     "^bigbee": "$Bigbee",
     "^quan": "$Quantum Chromodynamic Charge",
+    "^rainbuu": "🛌",
 
     "^rftools": "RFTools is a mod by Vazkii",
     "^greg": "STOP POSTING ABOUT GREGTECH, I'M TIRED OF SEEING IT! My friends on reddit send me memes, on discord it's fucking memes - I was in a subreddit, right? and ALLLLLLLLL of the POSTS are just GregTech stuff. I- I showed my Champion underwear to my girlfriend, and the logo I flipped it and I said, \"Hey babe: When the underwear greg :joy: :joy: :joy:\"",
