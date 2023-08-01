@@ -228,8 +228,8 @@ async def macro(interaction:interactions.Interaction, name:str):
 
 #     dump_data_json(data)
 
-@tree.command(name="pings", description="Set your string pings", guild=GUILD_OBJECT)
-@app_commands.describe(pings="Words that will ping you, comma seperated, case insensitive.")
+@tree.command(name = "pings", description = "Set your string pings", guild=GUILD_OBJECT)
+@app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive.")
 async def editpings(interaction:interactions.Interaction, pings:str):
     data = get_data_json()
     data = add_user_to_data(data, interaction.user)
@@ -248,10 +248,11 @@ async def on_translator_webhook():
         url = data["repository"]["url"]
         blob = f"{url}/blob/{data['repository']['default_branch']}"
 
-        transbed = discord.Embed(color=discord.Color.purple(), title="Lang file changed!", url=url)
+        transbed = discord.Embed(color = discord.Color.purple(), title = "Lang file changed!", url=url)
         transbed.description = "Changed files:\n\n"+"\n".join([f"[{i}]({blob}/{i})" for i in changed_files])
-        transbed.set_thumbnail(url=blob+"/src/main/resources/pack.png?raw=true")
-        transbed.set_footer(text="Changed mod: "+data["repository"]["name"].replace("-", " ").title())
+        transbed.set_thumbnail(url = blob + "/src/main/resources/pack.png?raw=true")
+        transbed.set_header(text = "Translate this or gcat will come to your home at night (he is russian)")
+        transbed.set_footer(text = "Changed mod: "+data["repository"]["name"].replace("-", " ").title())
 
         translators = await (await get_guild()).fetch_channel(CHANNELS["translators"])
         await translators.send(content="<@&1126286016781762680>", embed=transbed)
