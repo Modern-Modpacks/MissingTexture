@@ -18,7 +18,6 @@ from quart import Quart, request
 
 client = discord.Client(intents=discord.Intents.all())
 tree = app_commands.CommandTree(client)
-
 server = Quart(__name__)
 getLogger("werkzeug").disabled = True
 
@@ -42,11 +41,14 @@ everyone has prefrences and if you touch thoose you are nothing more than an lit
 
     "^rftools": "RFTools is a mod by Vazkii",
     "^greg": "STOP POSTING ABOUT GREGTECH, I'M TIRED OF SEEING IT! My friends on reddit send me memes, on discord it's fucking memes - I was in a subreddit, right? and ALLLLLLLLL of the POSTS are just GregTech stuff. I- I showed my Champion underwear to my girlfriend, and the logo I flipped it and I said, \"Hey babe: When the underwear greg :joy: :joy: :joy:\"",
-    "^5 stages of grief": "<:blunder:1119338458335416422:>",
+    "%5 stages of grief": "<:blunder:1119338458335416422>",
+    "^mekanism": "ALL THE FUCKING SONS OF MEKANISM, WHO CRAWLED OUT WITH THEIR CUT IN HALF BRAIN CELLS INTO THE TERRITORY OF A REAL TECH MOD, and I don't care about the fact that it's oversimplified in many aspects, this doesn't stop you, dickheads, from doing an absolute fuckery and claiming tier statuses, for which you'll need fucking 20 more hours or so of making infra of that tier. ALL BRAINLESS MONKEYS, WHO CAN'T EVEN READ TWO LINES OF TEXT OR CHECK THE FUCKING JEI, ASKING THEIR STUPID, 5-SECOND WORTH OF RESEARCH, QUESTIONS IN CHAT. AND ALL THE OTHER DEGENERATES, WHO CAME TO THIS CHAT JUST TO LOWER THE AVERAGE IQ OF ALREADY SUFFERING IN THAT REGARD CHAT. With this message I adress my hatred for you. You are the species of the very bottom of the GT community... Well fuck, not even GT community, even representatives of RLCraft, SevTech, SF4 and other garbage, don't have such a low IQ. And this isn't even my elitism, which I have to account for, every time I irresistibly want to make a hole in a wall using someone's head. Every single word in this message was thought out magnitudes better than your average thinking process while shitposting in this chat. You are mental impotents. You are incapable of a mere reading of the information that was thought out FOR and INSTEAD OF YOU. Not to mention tasks that really require planning (base design, math). You are braindeads, who are stuck in state of stagnation. I won't dare to judge anyone for not knowing something, but unwillingness to learn yourself and urge to ask every 2 minutes disgusts me, especially considering all the convinces nomi provides, including NEI or manual, which may not explain EVERYTHING but it explains exactly enough to figure out the rest yourself easily. At the times of my "first modpack" there was nothing besides atrocious wikis and English forums, for which I didn't have an access at least because I didn't know English. You don't respect the work of devs. Who the fuck did they do all the hard work for? I get it that the main point of the pack is to make GT more accessible and be a great "first" modpack from this category - the way the quest book is written proves that. It tells you a lot of basic concepts, from which you can deduce more complex things, and these complex things even explained on the server already through the %t commands. Your ignorance for all of that makes me feel nothing but pure Spanish shame for devs. Nomifactory didn't deserve this kind of community sharing one braincell between everyone. Maybe it was a mistake making a GT modpack for beginners, knowing the modded Minecraft community and knowing what kind of idiots it has. No negative towards devs or chat members who know how to gameign. Answers to incoming questions: Yes, I'm an elitist, seasoned one even, but i'm accounting for that and i'm going easy on you all. My elitism takes only a small role in what i find disgusting about you all, because you need to NEVER open the modpack and don't even know about it to fuck up as much as y'all do. Yes, I'm rather toxic, because how wouldn't you be toxic to people who'll never understand any other language? I would've NEVER been toxic if I saw at least SOME progress, and not the same thing repeated every minute. Yes, I'm a bit biased towards the nomi playerbase, but there wouldn't be any bias if the average IQ at least on the official server would've been at least a few points higher. No, I don't feel any shame or remorse for my words. There shouldn't be any remorse for someone who talks to you in a straight forward way and who's honest to everyone, including themselves. Thanks for everyone's attention, especially people who got affected by this message. Fuck you.",
 
     "^1.18": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.18 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
     "^1.19": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.19 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
     "^1.20": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.20 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update."
+
+    "^quanpack": "$hop on quanpack"
 }
 MACROS = {
     "website": "Modern Modpacks website: https://modernmodpacks.site",
@@ -100,7 +102,8 @@ https://media.discordapp.net/attachments/758096127982829659/802983225126813706/O
 }
 CHANNELS = {
     "memes": 1096717238553292882,
-    "translators": 1133844392495554560
+    "translators": 1133844392495554560,
+    "member-general": 1027127053008515092
 }
 GUILD_OBJECT = discord.Object(1025316079226064966)
 
@@ -139,20 +142,25 @@ async def on_disconnect():
 async def on_message(message:discord.Message):
     if message.author.bot: return
 
-    for k, v in RESPONSES.items():
-        keyword = k.removeprefix("^")
+    for name, value in RESPONSES.items():
+        keyword1 = name.removeprefix("^")
+        keyword = name.removeprefix("%")
         matchh = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
 
         if matchh and f":{keyword}:" not in message.content.lower():
-            if not k.startswith("^") or message.channel.id==CHANNELS["memes"]: 
-                if not v.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{v}", mention_author=False)
-                else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name==v.removeprefix("$")], mention_author=False)
+            if not name.startswith("^") or message.channel.id==CHANNELS["memes"]: 
+                if not value.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{value}", mention_author=False)
+                else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
+            if name.startswith("%") and (message.channel.id==CHANNELS["memes"] or message.channel.id==CHANNELS["member-general"]):
+                if not value.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{value}", mention_author=False)
+                else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
+                
 
     data = get_data_json()
-    for k, v in data.items():
-        for i in v["pings"]:
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=k: 
-                await (await client.fetch_user(k)).send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
+    for name, value in data.items():
+        for i in value["pings"]:
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name: 
+                await (await client.fetch_user(name)).send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
 
 @tasks.loop(seconds=5)
@@ -229,8 +237,8 @@ async def macro(interaction:interactions.Interaction, name:str):
 
 #     dump_data_json(data)
 
-@tree.command(name="pings", description="Set your string pings", guild=GUILD_OBJECT)
-@app_commands.describe(pings="Words that will ping you, comma seperated, case insensitive.")
+@tree.command(name = "pings", description = "Set your string pings", guild=GUILD_OBJECT)
+@app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive.")
 async def editpings(interaction:interactions.Interaction, pings:str):
     data = get_data_json()
     data = add_user_to_data(data, interaction.user)
@@ -249,10 +257,10 @@ async def on_translator_webhook():
         url = data["repository"]["url"]
         blob = f"{url}/blob/{data['repository']['default_branch']}"
 
-        transbed = discord.Embed(color=discord.Color.purple(), title="Lang file changed!", url=url)
+        transbed = discord.Embed(color = discord.Color.purple(), title = "Lang file changed!", url=url)
         transbed.description = "Changed files:\n\n"+"\n".join([f"[{i}]({blob}/{i})" for i in changed_files])
-        transbed.set_thumbnail(url=blob+"/src/main/resources/pack.png?raw=true")
-        transbed.set_footer(text="Changed mod: "+data["repository"]["name"].replace("-", " ").title())
+        transbed.set_thumbnail(url = blob + "/src/main/resources/pack.png?raw=true")
+        transbed.set_footer(text = "Changed mod: "+data["repository"]["name"].replace("-", " ").title())
 
         translators = await (await get_guild()).fetch_channel(CHANNELS["translators"])
         await translators.send(content="<@&1126286016781762680>", embed=transbed)
