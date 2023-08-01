@@ -31,6 +31,14 @@ RESPONSES = {
     "^bigbee": "$Bigbee",
     "^quan": "$Quantum Chromodynamic Charge",
     "^rainbuu": "🛌",
+    "^eyesquared": """@eyesquared  :capitalist:
+you fucking homeless piece of fucking crap thats looking for attention online just because your parents apparently did not cared about your unformed ass, your edgy 14 year old behavior is nothing but being an asshole 
+not even pointing out your mentall illnesses aka the pronouns that you collected like your dad collected HIV at your age
+everyone has prefrences and if you touch thoose you are nothing more than an literal asshole""",
+    "^eyecubed": """@eyesquared  :capitalist:
+you fucking homeless piece of fucking crap thats looking for attention online just because your parents apparently did not cared about your unformed ass, your edgy 14 year old behavior is nothing but being an asshole 
+not even pointing out your mentall illnesses aka the pronouns that you collected like your dad collected HIV at your age
+everyone has prefrences and if you touch thoose you are nothing more than an literal asshole""",
 
     "^rftools": "RFTools is a mod by Vazkii",
     "^greg": "STOP POSTING ABOUT GREGTECH, I'M TIRED OF SEEING IT! My friends on reddit send me memes, on discord it's fucking memes - I was in a subreddit, right? and ALLLLLLLLL of the POSTS are just GregTech stuff. I- I showed my Champion underwear to my girlfriend, and the logo I flipped it and I said, \"Hey babe: When the underwear greg :joy: :joy: :joy:\"",
