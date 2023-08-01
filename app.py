@@ -150,11 +150,25 @@ async def on_message(message:discord.Message):
         if matchh and f":{keyword}:" not in message.content.lower():
             if (not name.startswith("^") or message.channel.id==CHANNELS["memes"]) or (name.startswith("%") and message.channel.id in (CHANNELS["memes"], CHANNELS["member-general"])):
                 if not value.startswith("$"): 
-                    await message.reply(f"> {matchh[0]}\n\n{value[:1000]}", mention_author=False)
-                    if len(value)>1000:
-                        chunks = [value[i:i+2000] for i in range(1000, len(value), 2000)]
-                        if len(chunks)%2000!=0: chunks.append(value[-len(chunks)%2000:])
-                        for c in chunks: await message.channel.send(c)
+                    value = f"> {matchh[0]}\n\n{value}"
+                    if len(value)>2000:
+                        chunks = []
+                        chunk = ""
+                        chunklength = 0
+
+                        for i, word in enumerate(value.split(" ")):
+                            print(f"pre {chunklength}")
+                            chunklength += len(word)
+                            if chunklength>=1500 or i==len(value.split(" "))-1:
+                                if i==len(value.split(" "))-1: chunk += " "+word
+                                chunks.append(chunk)
+                                chunk = word
+                                chunklength = len(word)
+                            else: chunk += " "+word
+
+                        for c in chunks:
+                            await message.channel.send(c)
+                    else: await message.reply(value, mention_author=False)
                 else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
                 
 
