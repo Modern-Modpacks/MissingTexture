@@ -142,6 +142,10 @@ async def on_message(message:discord.Message):
             if not name.startswith("^") or message.channel.id==CHANNELS["memes"]: 
                 if not value.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{value}", mention_author=False)
                 else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
+            if name.startswith("%") and (message.channel.id==CHANNELS["memes"] or message.channel.id==CHANNELS["member-general"]):
+                if not value.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{value}", mention_author=False)
+                else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
+                
 
     data = get_data_json()
     for name, value in data.items():
