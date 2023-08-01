@@ -18,7 +18,6 @@ from quart import Quart, request
 
 client = discord.Client(intents=discord.Intents.all())
 tree = app_commands.CommandTree(client)
-
 server = Quart(__name__)
 getLogger("werkzeug").disabled = True
 
@@ -34,11 +33,13 @@ RESPONSES = {
 
     "^rftools": "RFTools is a mod by Vazkii",
     "^greg": "STOP POSTING ABOUT GREGTECH, I'M TIRED OF SEEING IT! My friends on reddit send me memes, on discord it's fucking memes - I was in a subreddit, right? and ALLLLLLLLL of the POSTS are just GregTech stuff. I- I showed my Champion underwear to my girlfriend, and the logo I flipped it and I said, \"Hey babe: When the underwear greg :joy: :joy: :joy:\"",
-    "^5 stages of grief": "<:blunder:1119338458335416422:>",
+    "^5 stages of grief": ":blunder:",
 
     "^1.18": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.18 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
     "^1.19": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.19 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
     "^1.20": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.20 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update."
+
+    "quanpack": "$hop on quanpack"
 }
 MACROS = {
     "website": "Modern Modpacks website: https://modernmodpacks.site",
@@ -92,7 +93,8 @@ https://media.discordapp.net/attachments/758096127982829659/802983225126813706/O
 }
 CHANNELS = {
     "memes": 1096717238553292882,
-    "translators": 1133844392495554560
+    "translators": 1133844392495554560,
+    "member-general": 1027127053008515092
 }
 GUILD_OBJECT = discord.Object(1025316079226064966)
 
