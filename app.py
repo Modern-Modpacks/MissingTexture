@@ -33,7 +33,7 @@ RESPONSES = {
 
     "^rftools": "RFTools is a mod by Vazkii",
     "^greg": "STOP POSTING ABOUT GREGTECH, I'M TIRED OF SEEING IT! My friends on reddit send me memes, on discord it's fucking memes - I was in a subreddit, right? and ALLLLLLLLL of the POSTS are just GregTech stuff. I- I showed my Champion underwear to my girlfriend, and the logo I flipped it and I said, \"Hey babe: When the underwear greg :joy: :joy: :joy:\"",
-    "^5 stages of grief": ":blunder:",
+    "%5 stages of grief": ":blunder:",
 
     "^1.18": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.18 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
     "^1.19": "Alright glad I just removed the integration and pushed my update today without it. Maybe I'll get around to using it when you aren't so rude. Fuck me for wanting to use your mod and not knowing if you were working on it since you had no 1.19 branch or anything. Man I even made this not a bug so it wouldn't fuck up metrics. And I said please and thanks, and didn't give you my life story or whatever. Jesus man don't mod if it makes you unhappy to update.",
@@ -133,20 +133,21 @@ async def on_disconnect():
 async def on_message(message:discord.Message):
     if message.author.bot: return
 
-    for k, v in RESPONSES.items():
-        keyword = k.removeprefix("^")
+    for name, value in RESPONSES.items():
+        keyword1 = name.removeprefix("^")
+        keyword = name.removeprefix("%")
         matchh = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
 
         if matchh and f":{keyword}:" not in message.content.lower():
-            if not k.startswith("^") or message.channel.id==CHANNELS["memes"]: 
-                if not v.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{v}", mention_author=False)
-                else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name==v.removeprefix("$")], mention_author=False)
+            if not name.startswith("^") or message.channel.id==CHANNELS["memes"]: 
+                if not value.startswith("$"): await message.reply(f"> {matchh[0]}\n\n{value}", mention_author=False)
+                else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
 
     data = get_data_json()
-    for k, v in data.items():
-        for i in v["pings"]:
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=k: 
-                await (await client.fetch_user(k)).send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
+    for name, value in data.items():
+        for i in value["pings"]:
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name: 
+                await (await client.fetch_user(name)).send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
 
 @tasks.loop(seconds=5)
