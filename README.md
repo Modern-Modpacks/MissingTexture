@@ -1,2 +1,2 @@
 # MissingTexture
-A bot for the official Modern Modpacks discord server
+A very good and totally not broken bot for the official MM discord server
