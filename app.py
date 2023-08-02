@@ -166,7 +166,8 @@ async def on_message(message:discord.Message):
                                 chunklength = len(word)
                             else: chunk += " "+word
 
-                        for c in chunks:
+                        await message.reply(chunks[0], mention_author=False)
+                        for c in chunks[1:]:
                             await message.channel.send(c)
                     else: await message.reply(value, mention_author=False)
                 else: await message.reply(stickers=[i for i in (await (await get_guild()).fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
