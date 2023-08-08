@@ -69,7 +69,7 @@ Second, **OptiFine is closed source**, which isn't bad by itself, a lot of your 
 And finally, even with all of these factors OptiFine would've still been usable, **but it is developed by only one person**. And if it couldn't get worse, that person **has said multiple times that they do not consider compatability the first priority**.
 
 OptiFine is "fine" (pun not intended) when used with older versions, because the older versions themselves had less content and thus are better optimized ||(and you don't really have any good alternatives for 1.12/1.7)||. But from 1.16 onwards, OF isn't something you should use.
-Instead, check out these **open-source** alternatives: <https://github.com/TheUsefulLists/UsefulMods>! The main ones we recommend are: Rubidium for optimization (https://legacy.curseforge.com/minecraft/mc-mods/rubidium) and Oculus for shaders (https://legacy.curseforge.com/minecraft/mc-mods/oculus).[⠀](https://media.discordapp.net/attachments/758096127982829659/802983225126813706/OptiDumpsterFire.gif)""",
+[Instead, check out these **open-source** alternatives](<https://github.com/TheUsefulLists/UsefulMods>)! The main ones we recommend are: [Rubidium](https://legacy.curseforge.com/minecraft/mc-mods/rubidium) for optimization and [Oculus](https://legacy.curseforge.com/minecraft/mc-mods/oculus) for shaders. [⠀](https://media.discordapp.net/attachments/758096127982829659/802983225126813706/OptiDumpsterFire.gif)""",
     "hellish": "Hellish Mods is a subsidiary organization of Modern Modpacks focusing on making 1.16.5 mods, check them out here: https://legacy.curseforge.com/members/HellishMods/projects",
     "ports": "We **do not** offer ports for Fabric/Quilt/1.19.x/1.18.2/1.12.2/1.20/1.7.10/Beta 1.7.3/LiteLoader/Risugami/Rift/rd-132211/Secret Friday Update #2/Whatever unless we decide that we need to. The only version we will support is Forge 1.16.5. Please **do not** ask for ports on our GitHub, Discord, Reddit, Youtube and everywhere else.",
     "rules": "**Please** read the rules in <#1025316810490384424> before posting. You are probably getting this message as a warning, so action **won’t be taken against you**, but **please** follow the rules next time.",
@@ -85,6 +85,7 @@ Instead, check out these **open-source** alternatives: <https://github.com/TheUs
     "yipee": "https://www.youtube.com/watch?v=Qu7KFMn54Bk",
 
     "info": "@website",
+    "of": "@optifine",
     "mods": "@hellish",
     "hellishmods": "@hellish",
     "docs": "@wiki",
