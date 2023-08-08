@@ -274,7 +274,7 @@ async def on_translator_webhook():
         url = data["repository"]["url"]
         blob = f"{url}/blob/{data['repository']['default_branch']}"
 
-        transbed = discord.Embed(color = discord.Color.purple(), title = "Lang file changed!", url=url)
+        transbed = discord.Embed(color = discord.Color.purple(), title = "Lang file(s) changed!", url=url)
         transbed.description = "Changed files:\n\n"+"\n".join([f"[{i}]({blob}/{i})" for i in changed_files])
         transbed.set_thumbnail(url = blob + "/src/main/resources/pack.png?raw=true")
         transbed.set_footer(text = "Changed mod: "+data["repository"]["name"].replace("-", " ").title())
