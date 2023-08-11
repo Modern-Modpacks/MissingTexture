@@ -106,7 +106,7 @@ CHANNELS = {
 }
 GUILD_OBJECT = discord.Object(1025316079226064966)
 
-statusi = 0
+statusi = None
 
 async def get_guild() -> discord.Guild: return await client.fetch_guild(GUILD_OBJECT.id)
 def get_data_json() -> dict: 
@@ -183,11 +183,13 @@ async def on_message(message:discord.Message):
 async def update_status():
     global statusi
 
-    screen = 5
+    screen = 7
     status = "🟥🟧🟨🟩🟦🟪⬛⬜🟫"
 
+    if statusi==None: statusi = screen-1
+
     statusstring = status[-(screen-1):]+status
-    await client.change_presence(activity=discord.Activity(name=statusstring[statusi:statusi+screen], type=discord.ActivityType.watching))
+    await client.change_presence(activity=discord.Activity(state=statusstring[statusi:statusi+screen], name="Why the fuck do I have to define this it doesn't even show up", type=discord.ActivityType.custom))
    
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
