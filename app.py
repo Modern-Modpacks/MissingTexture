@@ -7,6 +7,7 @@
 import discord
 from discord import app_commands, interactions
 from discord.ext import tasks
+from asyncio import sleep
 from re import search, IGNORECASE
 from sys import argv
 from os import _exit, path
@@ -15,6 +16,9 @@ from json import loads, load, dump
 from logging import getLogger
 from subprocess import Popen, DEVNULL
 from quart import Quart, request
+from requests import get
+from urllib import error
+from pubchempy import get_compounds, Compound
 
 client = discord.Client(intents=discord.Intents.all())
 tree = app_commands.CommandTree(client)
@@ -104,6 +108,19 @@ CHANNELS = {
     "translators": 1133844392495554560,
     "member-general": 1027127053008515092
 }
+SUBSCRIPT = {
+    "1": "₁",
+    "2": "₂",
+    "3": "₃",
+    "4": "₄",
+    "5": "₅",
+    "6": "₆",
+    "7": "₇",
+    "8": "₈",
+    "9": "₉",
+    "0": "₀",
+    "-": "₋"
+}
 GUILD_OBJECT = discord.Object(1025316079226064966)
 
 statusi = None
@@ -131,7 +148,6 @@ async def on_ready():
 
     await client.change_presence(status=discord.Status.online)
     update_status.start()
-    # check_reminds.start()
 
     print(f"Logged in as: {client.user}")
 @client.event
@@ -193,16 +209,6 @@ async def update_status():
    
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
-# @tasks.loop(seconds=5)
-# async def check_reminds():
-#     data = get_data_json()
-
-#     for k, v in data.items():
-#         for i in v["reminds"]:
-#             if i["time"]<time(): 
-#                 await (await client.fetch_user(k)).send("Reminder! "+("Reason: "+i["reason"]+". " if i["reason"] else "")+(await (await client.fetch_channel(i["channel"])).fetch_message(i["message"])).jump_url)
-#                 data[k]["reminds"].remove([j for j in data[k]["reminds"] if j["time"]==i["time"]][0])
-#                 dump_data_json(data)
 
 @server.after_serving
 async def shutdown(): 
@@ -210,7 +216,7 @@ async def shutdown():
     _exit(0)
 
 @tree.command(name="macro", description="Sends a quick macro message to the chat", guild=GUILD_OBJECT)
-@app_commands.describe(name="Name of the macro, type /macro list to see all of them.")
+@app_commands.describe(name="Name of the macro, type /macro list to see all of them")
 async def macro(interaction:interactions.Interaction, name:str):
     name = name.lower()
 
@@ -226,34 +232,66 @@ async def macro(interaction:interactions.Interaction, name:str):
     if not text.startswith("@"): await interaction.response.send_message(content=text)
     else: await interaction.response.send_message(content=MACROS[text.removeprefix("@")])
 
-# @tree.command(name="remindme", description="Pings you after a certain period of time", guild=GUILD_OBJECT)
-# @app_commands.describe(period="A period of time, written in a \"{time}(s/m/h/d)\" format")
-# @app_commands.describe(reason="A optional reason for the reminder")
-# async def remindme(interaction:interactions.Interaction, period:str, reason:str=""):
-#     if not period[:-1].isnumeric() or period[-1] not in ("s", "m", "h", "d"): 
-#         await interaction.response.send_message(content="Wrong period format: `"+period+"`", ephemeral=True)
-#         return
+@tree.command(name="chemsearch", description="Searches for a chemical molecule based on the query", guild=GUILD_OBJECT)
+@app_commands.describe(query="Search query")
+async def chemsearch(interaction:interactions.Interaction, query:str):
+    await interaction.response.defer()
 
-#     data = get_data_json()
-#     data = add_user_to_data(data, interaction.user)
+    results = None
+    pubchemerr = None
 
-#     remindtime = 0
-#     if period.endswith("s"): remindtime = time()+int(period.removesuffix("s"))
-#     elif period.endswith("m"): remindtime = time()+(60*int(period.removesuffix("m")))
-#     elif period.endswith("h"): remindtime = time()+(3600*int(period.removesuffix("h")))
-#     elif period.endswith("d"): remindtime = time()+(86400*int(period.removesuffix("d")))
+    while results==None:
+        try: results = get_compounds(query, "name")
+        except error.URLError: 
+            if pubchemerr==None: pubchemerr = await interaction.channel.send("It looks like pubchem is down, please wait a few minutes for it to go back online.")
+            await sleep(5)
+            continue
 
-#     if reason: message = await interaction.response.send_message(content=f"Successfully added a reminder for `{period}` with reason `{reason}`!")
-#     else: message = await interaction.response.send_message(content=f"Successfully added a reminder for `{period}`!")
+        if len(results)<1: 
+            await interaction.followup.send(content="Whoops, molecule not found!")
+            return
+        result : Compound = results[0]
+        
+        info = get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{result.cid}/JSON").json()["Record"]
 
-#     data[str(interaction.user.id)]["reminds"].append({
-#         "time": remindtime,
-#         "reason": reason,
-#         "channel": interaction.channel.id,
-#         "message": message.message.id,
-#     })
+        def find_wikipedia_url(inf) -> str:
+            names = [i for i in inf["Section"] if i["TOCHeading"]=="Names and Identifiers"]
+            if len(names)<1: return
+            names = names[0]
 
-#     dump_data_json(data)
+            other = [i for i in names["Section"] if i["TOCHeading"]=="Other Identifiers"]
+            if len(other)<1: return
+            other = other[0]
+
+            wikipedia = [i for i in other["Section"] if i["TOCHeading"]=="Wikipedia"]
+            if len(wikipedia)<1: return
+            wikipedia = wikipedia[0]["Information"][0]["URL"]
+
+            return wikipedia
+        def has_3d_conformer(inf) -> bool:
+            structures = [i for i in inf["Section"] if i["TOCHeading"]=="Structures"]
+            if len(structures)<1: return False
+            structures = structures[0]
+
+            conformer = [i for i in structures["Section"] if i["TOCHeading"]=="3D Conformer"]
+            if len(conformer)<1: return False
+            conformer = conformer[0]
+
+            return True
+
+        wikipedia_url = find_wikipedia_url(info)
+        formula = result.molecular_formula
+        for k, v in SUBSCRIPT.items(): formula = formula.replace(k, v)
+
+        chembed = discord.Embed(color=discord.Color.green(), title=info["RecordTitle"].title(), description=f"**Formula**: {formula}\n**Weight**: {result.molecular_weight}", url="https://pubchem.ncbi.nlm.nih.gov/compound/"+str(result.cid))
+        chembed.set_footer(text=f"Info provided by PubChem. CID: {result.cid}")
+        if result.iupac_name!=None: chembed.description += f"\n**IUPAC Name**: {result.iupac_name}"
+        if has_3d_conformer(info): chembed.description += f"\n**3D Conformer**: [Link](https://pubchem.ncbi.nlm.nih.gov/compound/{result.cid}#section=3D-Conformer&fullscreen=true)"
+        if wikipedia_url!=None: chembed.description += f"\n\n[**From the wikipedia article**:]({wikipedia_url})\n"+get(wikipedia_url.replace("/wiki/", "/api/rest_v1/page/summary/")).json()["extract"]
+        chembed.set_thumbnail(url=f"https://pubchem.ncbi.nlm.nih.gov/image/imgsrv.fcgi?cid={result.cid}&t=l")
+
+        if pubchemerr!=None: await pubchemerr.delete()
+        await interaction.followup.send(embed=chembed)
 
 @tree.command(name = "pings", description = "Set your string pings", guild=GUILD_OBJECT)
 @app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive.")
