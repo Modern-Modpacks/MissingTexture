@@ -1,4 +1,7 @@
 discord
 quart
 thefuzz
+requests
+httpx
 pubchempy
+wptools

@@ -16,15 +16,19 @@ from sys import argv
 from os import _exit, path
 from time import time
 from json import loads, load, dump
+from hashlib import md5
 from logging import getLogger
 from subprocess import Popen, DEVNULL
 from quart import Quart, request
 from thefuzz import process
 from requests import get
-from urllib import error
-from pubchempy import get_compounds, Compound, BadRequestError
+from httpx import AsyncClient
+from urllib import error, parse
+from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
+from wptools import page
 
 client = discord.Client(intents=discord.Intents.all())
+http = AsyncClient()
 tree = app_commands.CommandTree(client)
 server = Quart(__name__)
 getLogger("werkzeug").disabled = True
@@ -217,6 +221,7 @@ async def update_status():
 @server.after_serving
 async def shutdown(): 
     await on_disconnect()
+    http.aclose()
     _exit(0)
 
 async def macro_name_autocomplete(interactions: interactions.Interaction, current:str) -> list:
@@ -239,70 +244,85 @@ async def macro(interaction:interactions.Interaction, name:str):
     if not text.startswith("@"): await interaction.response.send_message(content=text)
     else: await interaction.response.send_message(content=MACROS[text.removeprefix("@")])
 
-@tree.command(name="chemsearch", description="Searches for a chemical compound based on the query", guild=GUILD_OBJECT)
-@app_commands.describe(query="Compound name or PubChem CID")
-async def chemsearch(interaction:interactions.Interaction, query:str):
+@tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.", guild=GUILD_OBJECT)
+@app_commands.describe(query="Compound/Substance name or PubChem CID/SID", type="Search for Compounds/Substances. Optional, \"Compound\" by default", bettersearch="Enables better search feature, which might take longer. Optional, false by default")
+@app_commands.choices(type=[app_commands.Choice(name=i, value=i) for i in ("Compound", "Substance")])
+async def chemsearch(interaction:interactions.Interaction, query:str, type:str="compound", bettersearch:bool=False):
     await interaction.response.defer()
 
+    type = type.lower()
+    typeindex = 0 if type.lower()=="compound" else 1
     results = None
     pubchemerr = None
 
     while results==None:
         try: 
             if query.isnumeric(): 
-                try: results = [Compound.from_cid(int(query))]
+                try: results = [(Compound.from_cid(int(query)) if typeindex==0 else Substance.from_sid(int(query)))]
                 except BadRequestError: results = []
-            else: results = get_compounds(query, "name")
+            else: 
+                if typeindex==0: results = get_compounds(query, "name")
+                else: results = get_substances(query, "name")
         except error.URLError: 
             if pubchemerr==None: pubchemerr = await interaction.channel.send("It looks like pubchem is down, please wait a few minutes for it to go back online.")
             await sleep(5)
             continue
 
-        if len(results)<1: 
-            await interaction.followup.send(content="Whoops, molecule not found!")
-            return
-        result : Compound = results[0]
-        
-        info = get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{result.cid}/JSON").json()["Record"]
+    if len(results)<1: 
+        await interaction.followup.send(content="Whoops, molecule not found!")
+        return
 
-        def find_wikipedia_url(inf) -> str:
-            names = [i for i in inf["Section"] if i["TOCHeading"]=="Names and Identifiers"]
-            if len(names)<1: return
-            names = names[0]
+    if bettersearch:
+        namedict = {(await http.get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/{type}/{i.cid if typeindex==0 else i.sid}/JSON")).json()["Record"]["RecordTitle"]: i for i in results}
+        result : (Compound if typeindex==0 else Substance) = namedict[process.extract(query, namedict.keys(), limit=1)[0][0]]
+    else: result = results[0]
+    
+    id = result.cid if typeindex==0 else result.sid
+    info = (await http.get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/{type}/{id}/JSON")).json()["Record"]
 
-            other = [i for i in names["Section"] if i["TOCHeading"]=="Other Identifiers"]
-            if len(other)<1: return
-            other = other[0]
+    def find_wikipedia_url(inf) -> str:
+        names = [i for i in inf["Section"] if i["TOCHeading"]=="Names and Identifiers"]
+        if len(names)<1: return
+        names = names[0]
 
-            wikipedia = [i for i in other["Section"] if i["TOCHeading"]=="Wikipedia"]
-            if len(wikipedia)<1: return
-            wikipedia = wikipedia[0]["Information"][0]["URL"]
+        other = [i for i in names["Section"] if i["TOCHeading"]=="Other Identifiers"]
+        if len(other)<1: return
+        other = other[0]
 
-            return wikipedia
-        def has_3d_conformer(inf) -> bool:
-            structures = [i for i in inf["Section"] if i["TOCHeading"]=="Structures"]
-            if len(structures)<1: return False
-            structures = structures[0]
+        wikipedia = [i for i in other["Section"] if i["TOCHeading"]=="Wikipedia"]
+        if len(wikipedia)<1: return
+        wikipedia = wikipedia[0]["Information"][0]["URL"]
 
-            conformer = [i for i in structures["Section"] if i["TOCHeading"]=="3D Conformer"]
-            if len(conformer)<1: return False
-            conformer = conformer[0]
+        return wikipedia
+    def has_3d_conformer(inf) -> bool:
+        structures = [i for i in inf["Section"] if i["TOCHeading"]=="Structures"]
+        if len(structures)<1: return False
+        structures = structures[0]
 
-            return True
+        conformer = [i for i in structures["Section"] if i["TOCHeading"]=="3D Conformer"]
+        if len(conformer)<1: return False
+        conformer = conformer[0]
 
-        wikipedia_url = find_wikipedia_url(info)
+        return True
+
+    wikipedia_url = find_wikipedia_url(info) if typeindex==0 else f"https://en.m.wikipedia.org/wiki/{parse.quote(info['RecordTitle']).lower()}"
+    wikiinfo = get(wikipedia_url.replace("/wiki/", "/api/rest_v1/page/summary/"))
+    wikiinfo = wikiinfo.json() if wikiinfo.status_code!=404 else None
+
+    if typeindex==0:
         formula = result.molecular_formula
         for k, v in SUBSCRIPT.items(): formula = formula.replace(k, v)
 
-        chembed = discord.Embed(color=discord.Color.green(), title=info["RecordTitle"].title(), description=f"**Formula**: {formula}\n**Weight**: {result.molecular_weight}", url="https://pubchem.ncbi.nlm.nih.gov/compound/"+str(result.cid))
-        chembed.set_footer(text=f"Info provided by PubChem. CID: {result.cid}")
-        if result.iupac_name!=None: chembed.description += f"\n**IUPAC Name**: {result.iupac_name}"
-        if has_3d_conformer(info): chembed.description += f"\n**3D Conformer**: [Link](https://pubchem.ncbi.nlm.nih.gov/compound/{result.cid}#section=3D-Conformer&fullscreen=true)"
-        if wikipedia_url!=None: chembed.description += f"\n\n[**From the wikipedia article**:]({wikipedia_url})\n"+get(wikipedia_url.replace("/wiki/", "/api/rest_v1/page/summary/")).json()["extract"]
-        chembed.set_thumbnail(url=f"https://pubchem.ncbi.nlm.nih.gov/image/imgsrv.fcgi?cid={result.cid}&t=l")
+    chembed = discord.Embed(color=discord.Color.green(), title=info["RecordTitle"].title(), description="", url=f"https://pubchem.ncbi.nlm.nih.gov/{type}/{id}")
+    chembed.set_footer(text=f"Info provided by PubChem. {type[0].upper()}ID: {id}")
+    if typeindex==0: chembed.description += f"**Formula**: {formula}\n**Weight**: {result.molecular_weight}"
+    if typeindex==0 and result.iupac_name!=None: chembed.description += f"\n**IUPAC Name**: {result.iupac_name}"
+    if has_3d_conformer(info): chembed.description += f"\n**3D Conformer**: [Link](https://pubchem.ncbi.nlm.nih.gov/{type}/{id}#section=3D-Conformer&fullscreen=true)"
+    if wikipedia_url!=None and wikiinfo["extract"]!=None: chembed.description += f"\n\n[**From the wikipedia article**:]({wikipedia_url})\n{wikiinfo['extract']}"
+    chembed.set_thumbnail(url=f"https://pubchem.ncbi.nlm.nih.gov/image/imgsrv.fcgi?{type[0]}id={id}&t=l")
 
-        if pubchemerr!=None: await pubchemerr.delete()
-        await interaction.followup.send(embed=chembed)
+    if pubchemerr!=None: await pubchemerr.delete()
+    await interaction.followup.send(embed=chembed)
 
 @tree.command(name = "pings", description = "Set your string pings", guild=GUILD_OBJECT)
 @app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive.")
