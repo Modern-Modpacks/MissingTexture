@@ -4,6 +4,9 @@
 # But it works surprisingly
 # So no touchy touch
 
+from warnings import filterwarnings 
+filterwarnings("ignore")
+
 import discord
 from discord import app_commands, interactions
 from discord.ext import tasks
@@ -16,9 +19,10 @@ from json import loads, load, dump
 from logging import getLogger
 from subprocess import Popen, DEVNULL
 from quart import Quart, request
+from thefuzz import process
 from requests import get
 from urllib import error
-from pubchempy import get_compounds, Compound
+from pubchempy import get_compounds, Compound, BadRequestError
 
 client = discord.Client(intents=discord.Intents.all())
 tree = app_commands.CommandTree(client)
@@ -215,11 +219,14 @@ async def shutdown():
     await on_disconnect()
     _exit(0)
 
-@tree.command(name="macro", description="Sends a quick macro message to the chat", guild=GUILD_OBJECT)
-@app_commands.describe(name="Name of the macro, type /macro list to see all of them")
-async def macro(interaction:interactions.Interaction, name:str):
-    name = name.lower()
+async def macro_name_autocomplete(interactions: interactions.Interaction, current:str) -> list:
+    choices = list(MACROS.keys())
+    choices.append("list")
+    return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, choices, limit=10) if s>60] if current else choices[:25])]
 
+@tree.command(name="macro", description="Sends a quick macro message to the chat", guild=GUILD_OBJECT)
+@app_commands.autocomplete(name=macro_name_autocomplete)
+async def macro(interaction:interactions.Interaction, name:str):
     if name=="list":
         await interaction.response.send_message(content=" | ".join(MACROS.keys()), ephemeral=True)
         return
@@ -232,8 +239,8 @@ async def macro(interaction:interactions.Interaction, name:str):
     if not text.startswith("@"): await interaction.response.send_message(content=text)
     else: await interaction.response.send_message(content=MACROS[text.removeprefix("@")])
 
-@tree.command(name="chemsearch", description="Searches for a chemical molecule based on the query", guild=GUILD_OBJECT)
-@app_commands.describe(query="Search query")
+@tree.command(name="chemsearch", description="Searches for a chemical compound based on the query", guild=GUILD_OBJECT)
+@app_commands.describe(query="Compound name or PubChem CID")
 async def chemsearch(interaction:interactions.Interaction, query:str):
     await interaction.response.defer()
 
@@ -241,7 +248,11 @@ async def chemsearch(interaction:interactions.Interaction, query:str):
     pubchemerr = None
 
     while results==None:
-        try: results = get_compounds(query, "name")
+        try: 
+            if query.isnumeric(): 
+                try: results = [Compound.from_cid(int(query))]
+                except BadRequestError: results = []
+            else: results = get_compounds(query, "name")
         except error.URLError: 
             if pubchemerr==None: pubchemerr = await interaction.channel.send("It looks like pubchem is down, please wait a few minutes for it to go back online.")
             await sleep(5)
