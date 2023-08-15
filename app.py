@@ -160,6 +160,7 @@ def add_user_to_data(data:dict, user:discord.User) -> dict:
 async def on_ready():
     if len(argv)>1 and argv[1]=="--sync":
         for guild in GUILDS:
+            if client.get_guild(guild.id)==None: continue
             tree.copy_global_to(guild=guild)
             await tree.sync(guild=guild)
 
