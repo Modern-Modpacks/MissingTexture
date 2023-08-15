@@ -25,7 +25,6 @@ from requests import get
 from httpx import AsyncClient
 from urllib import error, parse
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
-from wptools import page
 
 client = discord.Client(intents=discord.Intents.all())
 http = AsyncClient()

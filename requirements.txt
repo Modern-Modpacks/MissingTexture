@@ -4,4 +4,3 @@ thefuzz
 requests
 httpx
 pubchempy
-wptools
