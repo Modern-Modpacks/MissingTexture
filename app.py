@@ -252,7 +252,7 @@ async def macro(interaction:interactions.Interaction, name:str):
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
         return
 
-    text = MAlocalmacrosCROS[name]
+    text = localmacros[name]
 
     if not text.startswith("@"): await interaction.response.send_message(content=text)
     else: await interaction.response.send_message(content=localmacros[text.removeprefix("@")])
