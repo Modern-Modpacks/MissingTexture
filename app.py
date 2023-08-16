@@ -66,6 +66,7 @@ everyone has prefrences and if you touch thoose you are nothing more than an lit
 }
 MACROS = {
     "1025316079226064966": {
+        # Text macros
         "website": "Modern Modpacks website: https://modernmodpacks.site",
         "avaritia": """# There exists like a billion different versions of avaritia for different versions of minecraft.
 If you're confused about which one to use, here's a list of them with their respective versions:
@@ -91,14 +92,18 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
         "wiki": "**Modern Modpacks & Hellish Mods have a documentation/wiki.** Link: https://wiki.modernmodpacks.site",
         "kofi": "If you want to support us monetarily, you can do it on your ko-fi: https://ko-fi.com/modernmodpacks. Note: you **will not** get anything in return.",
         "mpd": "Some Modern Modpacks devlogs are being posted on the Minecraft Pack Development server instead: https://discord.gg/R4tBduGsne",
+        "kubejs": "We are not related to the KubeJS development team, so if you are looking for better support you should ask directly in their discord server: https://discord.gg/lat",
         "mmc": "The worse MM: https://discord.gg/moddedmc",
         "gtb": "Official GregTech: Beyond discord server - https://discord.gg/sG6NZ7NaeC",
         "mm": "MM stands for Modern Modpacks, not Modded Minecraft, not Masterful Machinery, Modern Modpacks. Please for the love of god stop using that abbreviation incorrectly ||(or I will personally come into your house and shove a 1000MM ruler up your ass)||.",
 
+        # Video macros
         "tryandsee": "https://tryitands.ee/",
         "bruhmonkey": "https://www.youtube.com/watch?v=5oJgXrPuKGs",
         "yipee": "https://www.youtube.com/watch?v=Qu7KFMn54Bk",
+        "finland": "https://www.youtube.com/watch?v=pc8WFYhkatA",
 
+        # Aliases
         "info": "@website",
         "of": "@optifine",
         "mods": "@hellish",
@@ -107,12 +112,17 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
         "donate": "@kofi",
         "support": "@kofi",
         "devlogs": "@mpd",
+        "lat": "@kubejs",
+        "latdev": "@kubejs",
+        "latvian": "@kubejs",
+        "latviandev": "@kubejs",
         "theworsemm": "@mmc",
         "notmm": "@mmc",
         "beyond": "@gtb",
         "abbreviations": "@mm",
         "monkeybruh": "@bruhmonkey",
-        "bruh": "@bruhmonkey"
+        "bruh": "@bruhmonkey",
+        "myspoon": "@finland"
     },
     "1099658057010651176": {}
 }
