@@ -288,7 +288,7 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
         try: 
             if query.isnumeric(): 
                 try: results = [(Compound.from_cid(int(query)) if typeindex==0 else Substance.from_sid(int(query)))]
-                except BadRequestError: results = []
+                except (BadRequestError, ValueError): results = []
             else: 
                 if typeindex==0: results = get_compounds(query, "name")
                 else: results = get_substances(query, "name")
@@ -301,7 +301,7 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
         await interaction.followup.send(content="Whoops, molecule not found!")
         return
 
-    if bettersearch:
+    if bettersearch and not query.isnumeric():
         namedict = {(await http.get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/{type}/{i.cid if typeindex==0 else i.sid}/JSON")).json()["Record"]["RecordTitle"]: i for i in results}
         result : (Compound if typeindex==0 else Substance) = namedict[process.extract(query, namedict.keys(), limit=1)[0][0]]
     else: result = results[0]
