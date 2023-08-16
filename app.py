@@ -120,7 +120,8 @@ CHANNELS = {
     "mm": {
         "memes": 1096717238553292882,
         "translators": 1133844392495554560,
-        "member-general": 1027127053008515092
+        "member-general": 1027127053008515092,
+        "modlogs": 1118925292589830236,
     }
 }
 SUBSCRIPT = {
@@ -214,6 +215,20 @@ async def on_message(message:discord.Message):
             if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name: 
                 await (await client.fetch_user(name)).send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
+@tree.error
+async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError):
+    errorbed = discord.Embed(color=discord.Color.red(), title="I AM SHITTING MYSELF!1!1", description=f"""Details:
+```{err}```
+Channel: <#{interaction.channel.id}>
+User: <@{interaction.user.id}>
+Time: <t:{round(interaction.created_at.timestamp())}:f>""")
+    originalcommand = f"{interaction.command.name} "+" ".join([i["name"]+":"+i["value"] for i in interaction.data["options"]])
+    errorbed.set_footer(text=f"The command that caused the error: \"/{originalcommand}\"")
+    await (await client.fetch_channel(CHANNELS["mm"]["modlogs"])).send(embed=errorbed)
+
+    errmsg = "Whoops, something has gone wrong! This incident was already reported to mods, they will get on fixing it shortly!"
+    if interaction.response.is_done(): await interaction.followup.send(content=errmsg, ephemeral=True)
+    else: await interaction.response.send_message(content=errmsg, ephemeral=True)
 
 @tasks.loop(seconds=5)
 async def update_status():
