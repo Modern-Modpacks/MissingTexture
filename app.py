@@ -68,14 +68,14 @@ MACROS = {
     "1025316079226064966": {
         "website": "Modern Modpacks website: https://modernmodpacks.site",
         "avaritia": """# There exists like a billion different versions of avaritia for different versions of minecraft.
-    If you're confused about which one to use, here's a list of them with their respective versions:
+If you're confused about which one to use, here's a list of them with their respective versions:
 
-    * 1.7.10 - https://www.curseforge.com/minecraft/mc-mods/avaritia
-    * 1.12.2/1.18.2 - https://www.curseforge.com/minecraft/mc-mods/avaritia-1-10
-    * 1.16.5 - https://www.curseforge.com/minecraft/mc-mods/avaritia-endless
-    * 1.19(.0)/1.20 - https://www.curseforge.com/minecraft/mc-mods/avaritia-reforged
+* 1.7.10 - https://www.curseforge.com/minecraft/mc-mods/avaritia
+* 1.12.2/1.18.2 - https://www.curseforge.com/minecraft/mc-mods/avaritia-1-10
+* 1.16.5 - https://www.curseforge.com/minecraft/mc-mods/avaritia-endless
+* 1.19(.0)/1.20 - https://www.curseforge.com/minecraft/mc-mods/avaritia-reforged
 
-    * Bad MCreator version (1.16.5, 1.17.1, 1.19.x) - https://www.curseforge.com/minecraft/mc-mods/avaritia-lite""",
+* Bad MCreator version (1.16.5, 1.17.1, 1.19.x) - https://www.curseforge.com/minecraft/mc-mods/avaritia-lite""",
         "optifine": """# When you ask for help, we automatically assume that you don't have OptiFine installed.
 ## Why?
 
