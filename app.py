@@ -246,7 +246,8 @@ async def macro_name_autocomplete(interaction: interactions.Interaction, current
 async def macro(interaction:interactions.Interaction, name:str):
     localmacros = MACROS[str(interaction.guild.id)]
     if name=="list":
-        await interaction.response.send_message(content=" | ".join(localmacros.keys()), ephemeral=True)
+        if localmacros: await interaction.response.send_message(content=" | ".join(localmacros.keys()), ephemeral=True)
+        else: await interaction.response.send_message(content="No macros found!", ephemeral=True)
         return
     if name not in localmacros.keys():
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
@@ -319,8 +320,10 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
         return True
 
     wikipedia_url = find_wikipedia_url(info) if typeindex==0 else f"https://en.m.wikipedia.org/wiki/{parse.quote(info['RecordTitle']).lower()}"
-    wikiinfo = get(wikipedia_url.replace("/wiki/", "/api/rest_v1/page/summary/"))
-    wikiinfo = wikiinfo.json() if wikiinfo.status_code!=404 else None
+    wikiinfo = None
+    if wikipedia_url!=None:
+        wikiinfo = get(wikipedia_url.replace("/wiki/", "/api/rest_v1/page/summary/"))
+        wikiinfo = wikiinfo.json() if wikiinfo.status_code!=404 else None
 
     if typeindex==0:
         formula = result.molecular_formula
@@ -331,7 +334,7 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
     if typeindex==0: chembed.description += f"**Formula**: {formula}\n**Weight**: {result.molecular_weight}"
     if typeindex==0 and result.iupac_name!=None: chembed.description += f"\n**IUPAC Name**: {result.iupac_name}"
     if has_3d_conformer(info): chembed.description += f"\n**3D Conformer**: [Link](https://pubchem.ncbi.nlm.nih.gov/{type}/{id}#section=3D-Conformer&fullscreen=true)"
-    if wikipedia_url!=None and wikiinfo["extract"]!=None: chembed.description += f"\n\n[**From the wikipedia article**:]({wikipedia_url})\n{wikiinfo['extract']}"
+    if wikipedia_url!=None and wikiinfo!=None: chembed.description += f"\n\n[**From the wikipedia article**:]({wikipedia_url})\n{wikiinfo['extract']}"
     chembed.set_thumbnail(url=f"https://pubchem.ncbi.nlm.nih.gov/image/imgsrv.fcgi?{type[0]}id={id}&t=l")
 
     if pubchemerr!=None: await pubchemerr.delete()
