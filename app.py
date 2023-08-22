@@ -225,8 +225,9 @@ async def on_message(message:discord.Message):
     data = get_data_json()
     for name, value in data.items():
         for i in value["pings"]:
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name: 
-                await (await client.fetch_user(name)).send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
+            user = await client.fetch_user(name)
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(user).read_messages(): 
+                await user.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError):
