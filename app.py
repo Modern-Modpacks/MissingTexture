@@ -222,6 +222,21 @@ async def on_message(message:discord.Message):
                     else: await message.reply(value, mention_author=False)
                 else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
 
+    async def on_message(message):
+    # Check if the message is sent by the specific user
+    if message.author.id == 1025590776861819012:
+        # Check if the message has an attachment (image)
+        if message.attachments:
+            # Check if the message is not edited
+            if message.edited_at is None:
+                # Check if the message is not a slash command
+                if not message.content.startswith('/'):
+                    # Ping a role with the specified role ID (replace with your desired role ID)
+                    role_id = 1144260782599704669
+                    role = message.guild.get_role(role_id)
+                    if role:
+                        await message.channel.send(f"{role.mention}, an image was sent!")
+
     data = get_data_json()
     for name, value in data.items():
         for i in value["pings"]:
