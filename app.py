@@ -109,6 +109,7 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
         "bruhmonkey": "https://www.youtube.com/watch?v=5oJgXrPuKGs",
         "yipee": "https://www.youtube.com/watch?v=Qu7KFMn54Bk",
         "finland": "https://www.youtube.com/watch?v=pc8WFYhkatA",
+        "functions": "https://youtu.be/PAZTIAfaNr8?si=PleJT_Yopmn1JPA4",
 
         # Aliases
         "info": "@website",
