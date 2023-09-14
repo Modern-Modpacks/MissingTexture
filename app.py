@@ -25,6 +25,9 @@ from requests import get
 from httpx import AsyncClient
 from urllib import error, parse
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
+from io import BytesIO
+
+from thisrecipedoesnotexist import generate
 
 client = discord.Client(intents=discord.Intents.all())
 http = AsyncClient()
@@ -378,6 +381,15 @@ async def editpings(interaction:interactions.Interaction, pings:str):
     dump_data_json(data)
 
     await interaction.response.send_message(content="Pings set! Your new pings are: `"+",".join(data[str(interaction.user.id)]["pings"])+"`.", ephemeral=True)
+
+@tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
+@app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
+@app_commands.describe(type="The type of crafting table")
+async def recipe(interaction:interactions.Interaction, type:str="9x9"):
+    with BytesIO() as imgbin:
+        generate(type).save(imgbin, "PNG")
+        imgbin.seek(0)
+        await interaction.response.send_message(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"))
 
 @server.post("/translators")
 async def on_translator_webhook():

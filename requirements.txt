@@ -4,3 +4,4 @@ thefuzz
 requests
 httpx
 pubchempy
+pillow
