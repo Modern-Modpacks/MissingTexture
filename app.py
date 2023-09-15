@@ -27,7 +27,7 @@ from urllib import error, parse
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
 from io import BytesIO
 
-from thisrecipedoesnotexist import create, get_path
+from thisrecipedoesnotexist import create, get_path, run_server
 
 client = discord.Client(intents=discord.Intents.all())
 http = AsyncClient()
@@ -188,6 +188,8 @@ async def on_ready():
 
     client.loop.create_task(server.run_task(port=9999))
     Popen(("cloudflared", "tunnel", "run", "github_webhook"), stderr=DEVNULL)
+    run_server()
+    Popen(("cloudflared", "tunnel", "run", "thisrecipedoesnotexist"), stderr=DEVNULL)
 
     await client.change_presence(status=discord.Status.online)
     update_status.start()
@@ -389,7 +391,7 @@ async def editpings(interaction:interactions.Interaction, pings:str):
 @tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
 @app_commands.describe(type="The type of crafting table", outputitem="Output item id")
-async def recipe(interaction:interactions.Interaction, type:str="9x9", outputitem:str=None):
+async def recipe(interaction:interactions.Interaction, type:str=None, outputitem:str=None):
     outputitemid = None
     if outputitem!=None:
         if ":" not in outputitem: outputitem = "minecraft:"+outputitem

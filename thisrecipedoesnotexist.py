@@ -3,6 +3,19 @@ from math import floor
 from glob import glob
 from os.path import exists
 from PIL import Image, ImageEnhance, ImageDraw
+from quart import Quart, send_file
+from asyncio import run
+from nest_asyncio import apply
+
+async def _serve() -> Quart:
+    app = Quart(__name__)
+
+    @app.get("/")
+    async def recipe():
+        create(None, None).save("recipe.png")
+        return await send_file("recipe.png", "image/png")
+
+    app.run(port=3333)
 
 def _get_item(path:str) -> str: return ":".join(path.split("/")[-2:]).removesuffix(".png")
 def get_path(itemid:str) -> str: 
@@ -17,6 +30,8 @@ def create(type:str, outputitem:str) -> Image.Image:
         "7x7": ((32, 72), (256, 63), 62, 10, 7, "elite_table"),
         "9x9": ((32, 72), (248, 63), 64, 8, 9, "ultimate_table")
     }
+
+    if type==None: type=choice(list(PARAMS.keys()))
     
     selectedparams = PARAMS[type]
     offset = selectedparams[0]
@@ -65,8 +80,8 @@ def create(type:str, outputitem:str) -> Image.Image:
 
     return bg
 
-# if __name__=="__main__": 
-    # create((122, 68), (318, 38), 60, 12, 3, "basic_table")
-    # create((58, 73), (270, 57), 60, 12, 5, "advanced_table")
-    # create((32, 72), (256, 63), 62, 10, 7, "elite_table")
-    # create((32, 72), (248, 63), 64, 8, 9, "ultimate_table")
+def run_server():
+    apply()
+    run(_serve())
+
+if __name__=="__main__": run_server()
