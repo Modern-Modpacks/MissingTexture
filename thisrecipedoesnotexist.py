@@ -1,22 +1,38 @@
 from random import sample, choice, randrange
 from math import floor
 from glob import glob
+from os.path import exists
 from PIL import Image, ImageEnhance, ImageDraw
 
 def _get_item(path:str) -> str: return ":".join(path.split("/")[-2:]).removesuffix(".png")
+def get_path(itemid:str) -> str: 
+    path = f"assets/thisrecipedoesnotexist/items/{itemid.replace(':', '/')}.png"
+    if not exists(path): return None
+    return path
 
-PARAMS = {
-    "3x3": ((122, 68), (318, 38), 60, 12, 3, "basic_table"),
-    "5x5": ((58, 73), (270, 57), 60, 12, 5, "advanced_table"),
-    "7x7": ((32, 72), (256, 63), 62, 10, 7, "elite_table"),
-    "9x9": ((32, 72), (248, 63), 64, 8, 9, "ultimate_table")
-}
+def create(type:str, outputitem:str) -> Image.Image:
+    PARAMS = {
+        "3x3": ((122, 68), (318, 38), 60, 12, 3, "basic_table"),
+        "5x5": ((58, 73), (270, 57), 60, 12, 5, "advanced_table"),
+        "7x7": ((32, 72), (256, 63), 62, 10, 7, "elite_table"),
+        "9x9": ((32, 72), (248, 63), 64, 8, 9, "ultimate_table")
+    }
+    
+    selectedparams = PARAMS[type]
+    offset = selectedparams[0]
+    outputoffset = selectedparams[1]
+    itemsize = selectedparams[2]
+    gap = selectedparams[3]
+    benchsize = selectedparams[4]
+    name = selectedparams[5]
 
-def create(offset:tuple, outputoffset:tuple, itemsize:int, gap:int, benchsize:int, name:str) -> Image.Image:
     files = glob("assets/thisrecipedoesnotexist/items/**/*.png")
-
+    if outputitem!=None: files.remove(outputitem)
     inputs = []
-    for i in sample(files, k=(benchsize**2)+1):
+    randitems = sample(files, k=(benchsize**2)+(1 if outputitem==None else 0))
+    if outputitem!=None: randitems.append(outputitem)
+
+    for i in randitems:
         img : Image.Image = Image.open(i)
         if img.height!=img.width: 
             randpart = randrange(1, floor(img.height/img.width))
@@ -48,7 +64,6 @@ def create(offset:tuple, outputoffset:tuple, itemsize:int, gap:int, benchsize:in
     draw.rectangle(((bg.width-30, 15), (bg.width-15, 30)), "#00000066")
 
     return bg
-def generate(type:str) -> Image.Image: return create(*PARAMS[type])
 
 # if __name__=="__main__": 
     # create((122, 68), (318, 38), 60, 12, 3, "basic_table")
