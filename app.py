@@ -392,6 +392,7 @@ async def editpings(interaction:interactions.Interaction, pings:str):
 async def recipe(interaction:interactions.Interaction, type:str="9x9", outputitem:str=None):
     outputitemid = None
     if outputitem!=None:
+        if ":" not in outputitem: outputitem = "minecraft:"+outputitem
         outputitemid = get_path(outputitem)
         if outputitemid==None:
             await interaction.response.send_message("No item found: `"+outputitem+"`", ephemeral=True)
