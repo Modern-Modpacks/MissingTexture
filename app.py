@@ -72,7 +72,8 @@ everyone has prefrences and if you touch thoose you are nothing more than an lit
 
         "^quanpack": "$hop on quanpack"
     },
-    "1099658057010651176": {}
+    "1099658057010651176": {},
+    "1152341294434238544": {}
 }
 MACROS = {
     "1025316079226064966": {
@@ -135,7 +136,8 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
         "bruh": "@bruhmonkey",
         "myspoon": "@finland"
     },
-    "1099658057010651176": {}
+    "1099658057010651176": {},
+    "1152341294434238544": {}
 }
 CHANNELS = {
     "mm": {
@@ -160,7 +162,8 @@ SUBSCRIPT = {
 }
 GUILDS = (
     discord.Object(1025316079226064966), # MM
-    discord.Object(1099658057010651176) # GTB
+    discord.Object(1099658057010651176), # GTB
+    discord.Object(1152341294434238544) # AmogBlock
 )
 
 statusi = None
