@@ -189,7 +189,7 @@ async def on_ready():
     client.loop.create_task(server.run_task(port=9999))
     Popen(("cloudflared", "tunnel", "run", "github_webhook"), stderr=DEVNULL)
     run_server()
-    Popen(("cloudflared", "tunnel", "run", "thisrecipedoesnotexist"), stderr=DEVNULL)
+    Popen(("cloudflared", "tunnel", " --config", "~/.cloudflared/trdne_config.yml", "run", "thisrecipedoesnotexist"), stderr=DEVNULL)
 
     await client.change_presence(status=discord.Status.online)
     update_status.start()
