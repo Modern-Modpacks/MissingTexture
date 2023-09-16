@@ -19,7 +19,7 @@ from json import loads, load, dump
 from hashlib import md5
 from logging import getLogger
 from subprocess import Popen, DEVNULL
-from quart import Quart, request
+from quart import Quart
 from thefuzz import process
 from requests import get
 from httpx import AsyncClient
@@ -192,7 +192,7 @@ async def on_ready():
     client.loop.create_task(server.run_task(port=9999))
     Popen(("cloudflared", "tunnel", "run", "github_webhook"))
     client.loop.create_task(create_task())
-    Popen(("cloudflared", "tunnel", " --config", "~/.cloudflared/trdne_config.yml", "run", "thisrecipedoesnotexist"))
+    Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/trdne_config.yml"), "run", "thisrecipedoesnotexist"))
 
     await client.change_presence(status=discord.Status.online)
     update_status.start()
