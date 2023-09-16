@@ -5,4 +5,3 @@ requests
 httpx
 pubchempy
 pillow
-nest-asyncio

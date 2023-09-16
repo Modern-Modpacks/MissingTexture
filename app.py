@@ -27,7 +27,7 @@ from urllib import error, parse
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
 from io import BytesIO
 
-from thisrecipedoesnotexist import create, get_path, run_server
+from thisrecipedoesnotexist import create, get_path, create_task
 
 client = discord.Client(intents=discord.Intents.all())
 http = AsyncClient()
@@ -191,7 +191,7 @@ async def on_ready():
 
     client.loop.create_task(server.run_task(port=9999))
     Popen(("cloudflared", "tunnel", "run", "github_webhook"), stderr=DEVNULL)
-    run_server()
+    client.loop.create_task(create_task())
     Popen(("cloudflared", "tunnel", " --config", "~/.cloudflared/trdne_config.yml", "run", "thisrecipedoesnotexist"), stderr=DEVNULL)
 
     await client.change_presence(status=discord.Status.online)

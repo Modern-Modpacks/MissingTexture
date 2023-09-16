@@ -5,9 +5,9 @@ from os.path import exists
 from PIL import Image, ImageEnhance, ImageDraw
 from quart import Quart, send_file
 from asyncio import run
-from nest_asyncio import apply
+from typing import Coroutine
 
-async def _serve() -> Quart:
+def create_task() -> Coroutine:
     app = Quart(__name__)
 
     @app.get("/")
@@ -15,7 +15,7 @@ async def _serve() -> Quart:
         create(None, None).save("recipe.png")
         return await send_file("recipe.png", "image/png")
 
-    app.run(port=3333)
+    return app.run_task(port=3333)
 
 def _get_item(path:str) -> str: return ":".join(path.split("/")[-2:]).removesuffix(".png")
 def get_path(itemid:str) -> str: 
@@ -80,8 +80,6 @@ def create(type:str, outputitem:str) -> Image.Image:
 
     return bg
 
-def run_server():
-    apply()
-    run(_serve())
-
-if __name__=="__main__": run_server()
+if __name__=="__main__": 
+    task = create_task()
+    run(task)
