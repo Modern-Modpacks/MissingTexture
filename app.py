@@ -408,7 +408,7 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
     with BytesIO() as imgbin:
         create(type, outputitemid).save(imgbin, "PNG")
         imgbin.seek(0)
-        await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"))
+        await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), ephemeral=False)
 
 @server.post("/translators")
 async def on_translator_webhook():
