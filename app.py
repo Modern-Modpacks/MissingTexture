@@ -395,7 +395,6 @@ async def editpings(interaction:interactions.Interaction, pings:str):
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
 @app_commands.describe(type="The type of crafting table", outputitem="Output item id")
 async def recipe(interaction:interactions.Interaction, type:str=None, outputitem:str=None):
-    await interaction.response.defer(ephemeral=True)
 
     outputitemid = None
     if outputitem!=None:
@@ -405,10 +404,12 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
             await interaction.response.send_message("No item found: `"+outputitem+"`", ephemeral=True)
             return
 
+    await interaction.response.defer()
+
     with BytesIO() as imgbin:
         create(type, outputitemid).save(imgbin, "PNG")
         imgbin.seek(0)
-        await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), ephemeral=False)
+        await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"))
 
 @server.post("/translators")
 async def on_translator_webhook():
