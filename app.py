@@ -408,6 +408,7 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
         img.save(imgbin, "PNG")
         imgbin.seek(0)
 
+        buttons = None
         if links!=None:
             buttons = discord.ui.View()
             buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0]))
