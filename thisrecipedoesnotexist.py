@@ -1,9 +1,27 @@
+"""
+LICENSE: WTFPL
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                    Version 2, December 2004
+
+ Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
+
+ Everyone is permitted to copy and distribute verbatim or modified
+ copies of this license document, and changing it is allowed as long
+ as the name is changed.
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. You just DO WHAT THE FUCK YOU WANT TO.
+"""
+
 from random import sample, choice, randrange
 from math import floor
 from glob import glob
 from os.path import exists
 from PIL import Image, ImageEnhance, ImageDraw
-from quart import Quart, send_file
+from quart import Quart, request, send_file
 from asyncio import run
 from typing import Coroutine
 
@@ -12,7 +30,7 @@ def create_task() -> Coroutine:
 
     @app.get("/")
     async def recipe():
-        create(None, None).save("recipe.png")
+        create(request.args.get("type"), request.args.get("output")).save("recipe.png")
         return await send_file("recipe.png", "image/png")
 
     return app.run_task(port=3333)
@@ -31,7 +49,7 @@ def create(type:str, outputitem:str) -> Image.Image:
         "9x9": ((32, 72), (248, 63), 64, 8, 9, "ultimate_table")
     }
 
-    if type==None: type=choice(list(PARAMS.keys()))
+    if type==None or type not in PARAMS.keys(): type=choice(list(PARAMS.keys()))
     
     selectedparams = PARAMS[type]
     offset = selectedparams[0]
@@ -42,7 +60,10 @@ def create(type:str, outputitem:str) -> Image.Image:
     name = selectedparams[5]
 
     files = glob("assets/thisrecipedoesnotexist/items/**/*.png")
-    if outputitem!=None: files.remove(outputitem)
+    if outputitem!=None:
+        if ":" not in outputitem: outputitem = "minecraft:"+outputitem
+        outputitem = get_path(outputitem)
+        if outputitem!=None: files.remove(outputitem)
     inputs = []
     randitems = sample(files, k=(benchsize**2)+(1 if outputitem==None else 0))
     if outputitem!=None: randitems.append(outputitem)
