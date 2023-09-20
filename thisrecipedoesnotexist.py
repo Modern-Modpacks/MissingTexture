@@ -24,14 +24,19 @@ from PIL import Image, ImageEnhance, ImageDraw
 from quart import Quart, request, send_file
 from asyncio import run
 from typing import Coroutine
+from io import BytesIO
+from privatebinapi import send
 
 def create_task() -> Coroutine:
     app = Quart(__name__)
 
     @app.get("/")
     async def recipe():
-        create(request.args.get("type"), request.args.get("output")).save("recipe.png")
-        return await send_file("recipe.png", "image/png")
+        imgbin = BytesIO()
+        img, links = create(request.args.get("type"), request.args.get("output"), False)
+        img.save(imgbin, "PNG")
+        imgbin.seek(0)
+        return await send_file(imgbin, "image/png")
 
     return app.run_task(port=3333)
 
@@ -41,7 +46,34 @@ def get_path(itemid:str) -> str:
     if not exists(path): return None
     return path
 
-def create(type:str, outputitem:str) -> Image.Image:
+def _generate_kjs_script(items: list[str], type: str) -> str:
+    output = items.pop()
+    tiernums = {
+        "3x3": 1,
+        "5x5": 2,
+        "7x7": 3,
+        "9x9": 4
+    }
+    sep = ",\n    "
+    return f"""
+/*
+    ! NOTE: This will not work out-of-the-box
+
+    To get it working:
+    1. Put the code below in either onEvent("recipes", event => {{<code here>}}) or ServerEvents.recipes(event => {{<code here>}}) depending on your version (the first one is for 1.16/1.18, the second one id for 1.19/1.20)
+    2. Replace the modids with the correct ones in MODIDS
+    3. Remove all items that do not exist in your current instance 
+*/
+
+MODIDS = {{
+    {sep.join([f'"{i}": "{i}"' for i in set([j.split(":")[0] for j in items])])}
+}}
+event.recipes.extendedcrafting.shapeless_table("{output}", [
+    {sep.join([f"MODIDS['{i.split(':')[0]}']+':{i.split(':')[1]}'" for i in items])}
+]).merge({{tier: {tiernums[type]}}})
+"""
+
+def create(type:str, outputitem:str, generatepastes:bool) -> (Image.Image, tuple[str]):
     PARAMS = {
         "3x3": ((122, 68), (318, 38), 60, 12, 3, "basic_table"),
         "5x5": ((58, 73), (270, 57), 60, 12, 5, "advanced_table"),
@@ -99,7 +131,10 @@ def create(type:str, outputitem:str) -> Image.Image:
     draw.rectangle(((bg.width-15, 0), (bg.width, 15)), "#00000066")
     draw.rectangle(((bg.width-30, 15), (bg.width-15, 30)), "#00000066")
 
-    return bg
+    kjslink = None
+    if generatepastes: kjslink = send("https://privatebin.net/", text=_generate_kjs_script([_get_item(i) for i in randitems], type))["full_url"]
+
+    return bg, ((kjslink, "") if generatepastes else None)
 
 if __name__=="__main__": 
     task = create_task()

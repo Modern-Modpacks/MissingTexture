@@ -393,8 +393,8 @@ async def editpings(interaction:interactions.Interaction, pings:str):
 
 @tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
-@app_commands.describe(type="The type of crafting table", outputitem="Output item id")
-async def recipe(interaction:interactions.Interaction, type:str=None, outputitem:str=None):
+@app_commands.describe(type="The type of crafting table", outputitem="Output item id", exportrecipe="Whether or not to export the recipe to a kjs/ct script format")
+async def recipe(interaction:interactions.Interaction, type:str=None, outputitem:str=None, exportrecipe:bool=False):
     if outputitem!=None:
         if ":" not in outputitem: outputitem = "minecraft:"+outputitem
         if get_path(outputitem)==None:
@@ -404,9 +404,14 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
     await interaction.response.defer()
 
     with BytesIO() as imgbin:
-        create(type, outputitem).save(imgbin, "PNG")
+        img, links = create(type, outputitem, exportrecipe)
+        img.save(imgbin, "PNG")
         imgbin.seek(0)
-        await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"))
+
+        if links!=None:
+            buttons = discord.ui.View()
+            buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0]))
+        await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
 
 @server.post("/translators")
 async def on_translator_webhook():
