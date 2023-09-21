@@ -21,24 +21,23 @@ from math import floor
 from glob import glob
 from os.path import exists
 from PIL import Image, ImageEnhance, ImageDraw
-from quart import Quart, request, send_file
-from asyncio import run
+from flask import Flask, request, send_file
 from typing import Coroutine
 from io import BytesIO
 from privatebinapi import send
 
-def create_task() -> Coroutine:
-    app = Quart(__name__)
+def run_server():
+    app = Flask(__name__)
 
     @app.get("/")
-    async def recipe():
+    def recipe():
         imgbin = BytesIO()
         img, links = create(request.args.get("type"), request.args.get("output"), False)
         img.save(imgbin, "PNG")
         imgbin.seek(0)
-        return await send_file(imgbin, "image/png")
+        return send_file(imgbin, "image/png")
 
-    return app.run_task(port=3333)
+    app.run(port=3333)
 
 def _get_item(path:str) -> str: return ":".join(path.split("/")[-2:]).removesuffix(".png")
 def get_path(itemid:str) -> str: 
@@ -136,6 +135,4 @@ def create(type:str, outputitem:str, generatepastes:bool) -> (Image.Image, tuple
 
     return bg, ((kjslink, "") if generatepastes else None)
 
-if __name__=="__main__": 
-    task = create_task()
-    run(task)
+if __name__=="__main__": run_server()

@@ -17,23 +17,22 @@ from os import _exit, path
 from time import time
 from json import loads, load, dump
 from hashlib import md5
-from logging import getLogger
 from subprocess import Popen, DEVNULL
-from quart import Quart
+from flask import Flask
 from thefuzz import process
 from requests import get
 from httpx import AsyncClient
 from urllib import error, parse
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
 from io import BytesIO
+from threading import Thread
 
-from thisrecipedoesnotexist import create, get_path, create_task
+from thisrecipedoesnotexist import create, get_path, run_server
 
 client = discord.Client(intents=discord.Intents.all())
 http = AsyncClient()
 tree = app_commands.CommandTree(client)
-server = Quart(__name__)
-getLogger("werkzeug").disabled = True
+server = Flask(__name__)
 
 RESPONSES = {
     "1025316079226064966": {
@@ -180,7 +179,6 @@ def add_user_to_data(data:dict, user:discord.User) -> dict:
         "pings": []
     }
     return data
-
 @client.event
 async def on_ready():
     if len(argv)>1 and argv[1]=="--sync":
@@ -189,18 +187,17 @@ async def on_ready():
             tree.copy_global_to(guild=guild)
             await tree.sync(guild=guild)
 
-    client.loop.create_task(server.run_task(port=9999))
+    looptasks = []
+
+    Thread(target=lambda: server.run(port=9999)).start()
     Popen(("cloudflared", "tunnel", "run", "github_webhook"))
-    client.loop.create_task(create_task())
+    Thread(target=run_server).start()
     Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/trdne_config.yml"), "run", "thisrecipedoesnotexist"))
 
     await client.change_presence(status=discord.Status.online)
     update_status.start()
 
     print(f"Logged in as: {client.user}")
-@client.event
-async def on_disconnect():
-    await client.change_presence(status=discord.Status.offline)
 @client.event
 async def on_message(message:discord.Message):
     if message.author.bot: return
@@ -270,12 +267,6 @@ async def update_status():
    
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
-
-@server.after_serving
-async def shutdown(): 
-    await on_disconnect()
-    http.aclose()
-    _exit(0)
 
 async def macro_name_autocomplete(interaction: interactions.Interaction, current:str) -> list:
     choices = list(MACROS[str(interaction.guild.id)].keys())
@@ -408,10 +399,8 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
         img.save(imgbin, "PNG")
         imgbin.seek(0)
 
-        buttons = None
-        if links!=None:
-            buttons = discord.ui.View()
-            buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0]))
+        buttons = discord.ui.View()
+        if links!=None: buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0]))
         await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
 
 @server.post("/translators")

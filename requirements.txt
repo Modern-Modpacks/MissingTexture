@@ -1,5 +1,5 @@
 discord
-quart
+flask
 thefuzz
 requests
 httpx
