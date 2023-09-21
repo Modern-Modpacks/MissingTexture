@@ -405,7 +405,7 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
 
 @server.post("/translators")
 async def on_translator_webhook():
-    data = loads(await request.get_data())
+    data = loads(request.get_data())
     commit = data["head_commit"]
     changed_files = [i for i in commit["added"]+commit["modified"] if i.endswith("en_us.json")]
 
