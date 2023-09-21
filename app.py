@@ -10,7 +10,7 @@ filterwarnings("ignore")
 import discord
 from discord import app_commands, interactions
 from discord.ext import tasks
-from asyncio import sleep
+from asyncio import sleep, run_coroutine_threadsafe
 from re import search, IGNORECASE
 from sys import argv
 from os import _exit, path
@@ -167,7 +167,6 @@ GUILDS = (
 
 statusi = None
 
-async def get_mm_guild() -> discord.Guild: return await client.fetch_guild(GUILDS[0].id)
 def get_data_json() -> dict: 
     if not path.exists("data.json"):
         with open("data.json", "w+") as f: f.write("{}")
@@ -186,8 +185,6 @@ async def on_ready():
             if client.get_guild(guild.id)==None: continue
             tree.copy_global_to(guild=guild)
             await tree.sync(guild=guild)
-
-    looptasks = []
 
     Thread(target=lambda: server.run(port=9999)).start()
     Popen(("cloudflared", "tunnel", "run", "github_webhook"))
@@ -418,8 +415,8 @@ async def on_translator_webhook():
         transbed.set_thumbnail(url = blob + "/src/main/resources/pack.png?raw=true")
         transbed.set_footer(text = "Changed mod: "+data["repository"]["name"].replace("-", " ").title())
 
-        translators = await (await get_mm_guild()).fetch_channel(CHANNELS["mm"]["translators"])
-        await translators.send(content="<@&1126286016781762680>", embed=transbed)
+        translators = run_coroutine_threadsafe(run_coroutine_threadsafe(client.fetch_guild(GUILDS[0].id), client.loop).result().fetch_channel(CHANNELS["mm"]["translators"]), client.loop).result()
+        run_coroutine_threadsafe(translators.send(content="<@&1126286016781762680>", embed=transbed), client.loop)
 
     return "OK"
 
