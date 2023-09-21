@@ -18,7 +18,7 @@ from time import time
 from json import loads, load, dump
 from hashlib import md5
 from subprocess import Popen, DEVNULL
-from flask import Flask
+from flask import Flask, request
 from thefuzz import process
 from requests import get
 from httpx import AsyncClient
