@@ -465,5 +465,5 @@ async def on_translator_webhook():
 
     return "OK"
 
-try: client.run("MTEzMzc3OTEyMzA3NzEyODI1NQ.GOyT0M.9N5ZZaPx20ie4OY2fW40o0xfLwFRb4sqNLHikM")
+try: client.run(getenv("DISCORD_KEY"))
 except KeyboardInterrupt: pass
