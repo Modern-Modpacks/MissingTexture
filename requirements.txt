@@ -3,6 +3,7 @@ flask[async]
 thefuzz
 requests
 httpx
+pytz
 pubchempy
 pillow
 privatebinapi

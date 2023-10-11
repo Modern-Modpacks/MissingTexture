@@ -23,6 +23,7 @@ from thefuzz import process
 from requests import get
 from httpx import AsyncClient
 from urllib import error, parse
+from pytz import all_timezones
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
 from io import BytesIO
 from threading import Thread
@@ -180,7 +181,8 @@ def dump_data_json(data:dict):
     with open("data.json", "w") as f: dump(data, f)
 def add_user_to_data(data:dict, user:discord.User) -> dict:
     if str(user.id) not in data.keys(): data[str(user.id)] = {
-        "pings": []
+        "pings": [],
+        "tz": ""
     }
     return data
 @client.event
@@ -381,7 +383,7 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
     await interaction.followup.send(embed=chembed)
 
 @tree.command(name = "pings", description = "Set your string pings")
-@app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive.")
+@app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive")
 async def editpings(interaction:interactions.Interaction, pings:str):
     data = get_data_json()
     data = add_user_to_data(data, interaction.user)
@@ -389,6 +391,16 @@ async def editpings(interaction:interactions.Interaction, pings:str):
     dump_data_json(data)
 
     await interaction.response.send_message(content="Pings set! Your new pings are: `"+",".join(data[str(interaction.user.id)]["pings"])+"`.", ephemeral=True)
+@GROUPS["times"].command(name = "set", description = "Set your timezone")
+@app_commands.describe(timezone = "Your timezone")
+@app_commands.autocomplete(timezone=fuzz_autocomplete(all_timezones))
+async def settz(interaction:interactions.Interaction, timezone:str):
+    data = get_data_json()
+    data = add_user_to_data(data, interaction.user)
+    data[str(interaction.user.id)]["tz"] = timezone
+    dump_data_json(data)
+
+    await interaction.response.send_message(content="Timezone set! Your new timezone is: `"+timezone+"`.", ephemeral=True)
     
 @tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
