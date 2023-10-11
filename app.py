@@ -165,7 +165,8 @@ GUILDS = (
     discord.Object(1152341294434238544) # AmogBlock
 )
 GROUPS = {
-    "macros": app_commands.Group(name="macro", description="Commands that are related to macros")
+    "macros": app_commands.Group(name="macro", description="Commands that are related to macros"),
+    "times": app_commands.Group(name="times", description="Set your timezone/get another person's tz")
 }
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json"
 
@@ -379,6 +380,16 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
     if pubchemerr!=None: await pubchemerr.delete()
     await interaction.followup.send(embed=chembed)
 
+@tree.command(name = "pings", description = "Set your string pings")
+@app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive.")
+async def editpings(interaction:interactions.Interaction, pings:str):
+    data = get_data_json()
+    data = add_user_to_data(data, interaction.user)
+    data[str(interaction.user.id)]["pings"] = [i.lower() for i in pings.replace(", ", ",").split(",")]
+    dump_data_json(data)
+
+    await interaction.response.send_message(content="Pings set! Your new pings are: `"+",".join(data[str(interaction.user.id)]["pings"])+"`.", ephemeral=True)
+    
 @tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
 @app_commands.describe(type="The type of crafting table", outputitem="Output item id", exportrecipe="Whether or not to export the recipe to a kjs/ct script format")
