@@ -164,6 +164,9 @@ GUILDS = (
     discord.Object(1099658057010651176), # GTB
     discord.Object(1152341294434238544) # AmogBlock
 )
+GROUPS = {
+    "macros": app_commands.Group(name="macro", description="Commands that are related to macros")
+}
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json"
 
 statusi = None
@@ -184,7 +187,9 @@ async def on_ready():
     if len(argv)>1 and argv[1]=="--sync":
         for guild in GUILDS:
             if client.get_guild(guild.id)==None: continue
+
             tree.copy_global_to(guild=guild)
+            for group in GROUPS.values(): tree.add_command(group, guild=guild)
             await tree.sync(guild=guild)
 
     Thread(target=lambda: server.run(port=9999)).start()
@@ -268,19 +273,15 @@ async def update_status():
 
 def fuzz_autocomplete(choices):
     async def _autocomplete(interaction: interactions.Interaction, current:str) -> list: 
-        if type(choices)==dict: newchoices = list(choices[str(interaction.guild.id)].keys())+["list"]
+        if type(choices)==dict: newchoices = list(choices[str(interaction.guild.id)].keys())
         else: newchoices = list(choices)
         return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, newchoices, limit=10) if s>60] if current else newchoices[:10])]
     return _autocomplete
 
-@tree.command(name="macro", description="Sends a quick macro message to the chat")
+@GROUPS["macros"].command(name="run", description="Sends a quick macro message to the chat")
 @app_commands.autocomplete(name=fuzz_autocomplete(MACROS))
 async def macro(interaction:interactions.Interaction, name:str):
     localmacros = MACROS[str(interaction.guild.id)]
-    if name=="list":
-        if localmacros: await interaction.response.send_message(content=" | ".join(localmacros.keys()), ephemeral=True)
-        else: await interaction.response.send_message(content="No macros found!", ephemeral=True)
-        return
     if name not in localmacros.keys():
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
         return
@@ -289,6 +290,12 @@ async def macro(interaction:interactions.Interaction, name:str):
 
     if not text.startswith("@"): await interaction.response.send_message(content=text)
     else: await interaction.response.send_message(content=localmacros[text.removeprefix("@")])
+@GROUPS["macros"].command(name="list", description="Lists all available macros")
+async def macrolist(interaction:interactions.Interaction):
+    localmacros = MACROS[str(interaction.guild.id)]
+
+    if localmacros: await interaction.response.send_message(content=" | ".join(localmacros.keys()), ephemeral=True)
+    else: await interaction.response.send_message(content="No macros found!", ephemeral=True)
 
 @tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.")
 @app_commands.describe(query="Compound/Substance name or PubChem CID/SID", type="Search for Compounds/Substances. Optional, \"Compound\" by default", bettersearch="Enables better search feature, which might take longer. Optional, false by default")
@@ -371,16 +378,6 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
 
     if pubchemerr!=None: await pubchemerr.delete()
     await interaction.followup.send(embed=chembed)
-
-@tree.command(name = "pings", description = "Set your string pings")
-@app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive.")
-async def editpings(interaction:interactions.Interaction, pings:str):
-    data = get_data_json()
-    data = add_user_to_data(data, interaction.user)
-    data[str(interaction.user.id)]["pings"] = [i.lower() for i in pings.replace(", ", ",").split(",")]
-    dump_data_json(data)
-
-    await interaction.response.send_message(content="Pings set! Your new pings are: `"+",".join(data[str(interaction.user.id)]["pings"])+"`.", ephemeral=True)
 
 @tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
