@@ -5,7 +5,7 @@
 # So no touchy touch
 
 from warnings import filterwarnings 
-filterwarnings("ignore")
+# filterwarnings("ignore")
 
 import discord
 from discord import app_commands, interactions
@@ -13,7 +13,7 @@ from discord.ext import tasks
 from asyncio import sleep, run_coroutine_threadsafe
 from re import search, IGNORECASE
 from sys import argv
-from os import _exit, path
+from os import _exit, path, getenv
 from time import time
 from json import loads, load, dump
 from hashlib import md5
@@ -164,6 +164,7 @@ GUILDS = (
     discord.Object(1099658057010651176), # GTB
     discord.Object(1152341294434238544) # AmogBlock
 )
+KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json"
 
 statusi = None
 
@@ -232,7 +233,7 @@ async def on_message(message:discord.Message):
     for name, value in data.items():
         for i in value["pings"]:
             user = await client.fetch_user(name)
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(user).read_messages(): 
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(user).read_messages: 
                 await user.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
 @tree.error
@@ -265,13 +266,15 @@ async def update_status():
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
 
-async def macro_name_autocomplete(interaction: interactions.Interaction, current:str) -> list:
-    choices = list(MACROS[str(interaction.guild.id)].keys())
-    choices.append("list")
-    return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, choices, limit=10) if s>60] if current else choices[:25])]
+def fuzz_autocomplete(choices):
+    async def _autocomplete(interaction: interactions.Interaction, current:str) -> list: 
+        if type(choices)==dict: newchoices = list(choices[str(interaction.guild.id)].keys())+["list"]
+        else: newchoices = list(choices)
+        return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, newchoices, limit=10) if s>60] if current else newchoices[:10])]
+    return _autocomplete
 
 @tree.command(name="macro", description="Sends a quick macro message to the chat")
-@app_commands.autocomplete(name=macro_name_autocomplete)
+@app_commands.autocomplete(name=fuzz_autocomplete(MACROS))
 async def macro(interaction:interactions.Interaction, name:str):
     localmacros = MACROS[str(interaction.guild.id)]
     if name=="list":
@@ -399,6 +402,48 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
         buttons = discord.ui.View()
         if links!=None: buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0]))
         await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
+
+@tree.command(name = "kjspkglookup", description = "Gets info about a KJSPKG package")
+@app_commands.autocomplete(package=fuzz_autocomplete(get(KJSPKG_PKGS_LINK).json().keys()))
+@app_commands.describe(package="Package name")
+async def kjspkg(interaction:interactions.Interaction, package:str):
+    kjsbed = discord.Embed(color=discord.Color.from_str("#460067"), title=package.replace("-", " ").title(), url="https://kjspkglookup.modernmodpacks.site/#"+package)
+    kjsbed.set_thumbnail(url="https://raw.githubusercontent.com/Modern-Modpacks/assets/main/Icons/Other/kjspkg.png")
+
+    repostr = get(KJSPKG_PKGS_LINK).json()[package]
+    repo = repostr.split("$")[0]
+    path = repostr.split("$")[-1].split("@")[0]+"/" if "$" in repostr else ""
+    branch = repostr.split("@")[-1] if "@" in repostr else "main"
+    infourl = f"https://raw.githubusercontent.com/{repo}/{branch}/{path}.kjspkg"
+    info = get(infourl).json()
+
+    kjsbed.description = f"""**{info["description"]}**
+[**Source**](https://github.com/{repo})
+
+**Versions**: {", ".join([f"1.{i+10}" for i in info["versions"]])}
+**Modloaders**: {", ".join([i.title() for i in info["modloaders"]])}"""
+
+    if ("dependencies" in info.keys() and info["dependencies"]) or ("incompatibilities" in info.keys() and info["incompatibilities"]): kjsbed.description += "\n"
+    if "dependencies" in info.keys() and info["dependencies"]: kjsbed.description += "\n**Dependencies**: "+", ".join([f"{i.split(':')[0].title()} ({i.split(':')[1].title()})" if ":" in i else i.title() for i in info["dependencies"]])
+    if "incompatibilities" in info.keys() and info["incompatibilities"]: kjsbed.description += "\n**Incompatibilities**: "+", ".join([f"{i.split(':')[0].title()} ({i.split(':')[1].title()})" if ":" in i else i.title() for i in info["incompatibilities"]])
+
+    kjsbed.description += f"""
+
+**Commands**:
+`kjspkg install {package}` to install
+`kjspkg remove {package}` to remove
+`kjspkg update {package}` to update
+`kjspkg pkg {package}` to see more info"""
+
+    authoravatar = None
+    ghinfo = get("https://api.github.com/repos/"+repo, headers={"Authorization": "Bearer "+getenv("GITHUB_KEY")} if getenv("GITHUBKEY")!=None else {})
+    if ghinfo.status_code==200:
+        ghinfo = ghinfo.json()
+        authoravatar = ghinfo["owner"]["avatar_url"]
+
+    kjsbed.set_footer(text=f"Made by {info['author']}.", icon_url=authoravatar)
+
+    await interaction.response.send_message(embed=kjsbed)
 
 @server.post("/translators")
 async def on_translator_webhook():
