@@ -23,7 +23,9 @@ from thefuzz import process
 from requests import get
 from httpx import AsyncClient
 from urllib import error, parse
+from datetime import datetime
 from pytz import all_timezones
+from pytz import timezone as tz
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
 from io import BytesIO
 from threading import Thread
@@ -142,11 +144,15 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
 CHANNELS = {
     "mm": {
         "memes": 1096717238553292882,
+        "botspam": 1025318731137695814,
         "translators": 1133844392495554560,
         "member-general": 1027127053008515092,
         "modlogs": 1118925292589830236,
     }
 }
+AUTO_THREAD_CHANNELS = [
+    CHANNELS["mm"]["memes"]
+]
 SUBSCRIPT = {
     "1": "₁",
     "2": "₂",
@@ -208,13 +214,15 @@ async def on_ready():
 async def on_message(message:discord.Message):
     if message.author.bot: return
 
+    if message.channel.id in AUTO_THREAD_CHANNELS: message.create_thread(name=message.content)
+
     for name, value in RESPONSES[str(message.guild.id)].items():
         keyword1 = name.removeprefix("^")
         keyword = name.removeprefix("%")
         matchh = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
 
         if matchh and f":{keyword}:" not in message.content.lower():
-            if (not name.startswith("^") or message.channel.id==CHANNELS["mm"]["memes"]) or (name.startswith("%") and message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["member-general"])):
+            if (not name.startswith("^") or message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"])) or (name.startswith("%") and message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["member-general"], CHANNELS["mm"]["botspam"])):
                 if not value.startswith("$"): 
                     value = f"> {matchh[0]}\n\n{value}"
                     if len(value)>2000:
@@ -401,6 +409,42 @@ async def settz(interaction:interactions.Interaction, timezone:str):
     dump_data_json(data)
 
     await interaction.response.send_message(content="Timezone set! Your new timezone is: `"+timezone+"`.", ephemeral=True)
+@GROUPS["times"].command(name = "get", description = "Get yours or another user's timezone")
+@app_commands.describe(user = "The user to get the timezone from")
+async def gettz(interaction:interactions.Interaction, user:discord.User=None):
+    if user==None: user = interaction.user
+
+    data = get_data_json()
+    data = add_user_to_data(add_user_to_data(data, user), interaction.user)
+    dump_data_json(data)
+
+    selfdata = data[str(interaction.user.id)]
+    selftz = selfdata["tz"] if "tz" in selfdata.keys() else ""
+    data = data[str(user.id)]
+    timezone = data["tz"] if "tz" in data.keys() else ""
+
+    if not timezone:
+        await interaction.response.send_message(f"`{user.name}` hasn't set their timezone yet. If you want, ping them and tell them how to do so!", ephemeral=True)
+        return
+
+    for i in range(120):
+        now = datetime.now(tz(timezone))
+
+        tzbed = discord.Embed(color=user.color, title=f"`{user.name}`'s timezone")
+        tzbed.set_thumbnail(url=user.avatar.url)
+        tzbed.description = f"""**Current time**: `{now.strftime("%d/%m/%Y, %H:%M:%S")}`
+
+**Name**: `{timezone}`
+**Abbreviation**: `{now.strftime("%Z")}`
+**UTC offset**: `{now.strftime("%z")}`"""
+        if selfdata and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round(((datetime.now(tz(selftz)).astimezone(tz(timezone))-now).seconds/3600)*100)/100}`"
+
+        if i==0: await interaction.response.send_message(embed=tzbed, ephemeral=True)
+        else: await (await interaction.original_response()).edit(embed=tzbed)
+
+        await sleep(1)
+    
+    await interaction.delete_original_response()
     
 @tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
@@ -461,7 +505,7 @@ async def kjspkg(interaction:interactions.Interaction, package:str):
         ghinfo = ghinfo.json()
         authoravatar = ghinfo["owner"]["avatar_url"]
 
-    kjsbed.set_footer(text=f"Made by {info['author']}.", icon_url=authoravatar)
+    kjsbed.set_footer(text=f"Package made by {info['author']}. Info provided by KJSPKG.", icon_url=authoravatar)
 
     await interaction.response.send_message(embed=kjsbed)
 
