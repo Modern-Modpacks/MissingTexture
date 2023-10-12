@@ -214,7 +214,7 @@ async def on_ready():
 async def on_message(message:discord.Message):
     if message.author.bot: return
 
-    if message.channel.id in AUTO_THREAD_CHANNELS: message.create_thread(name=message.content)
+    if message.channel.id in AUTO_THREAD_CHANNELS: await message.create_thread(name=message.content)
 
     for name, value in RESPONSES[str(message.guild.id)].items():
         keyword1 = name.removeprefix("^")
