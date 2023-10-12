@@ -431,7 +431,7 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None):
         now = datetime.now(tz(timezone))
 
         tzbed = discord.Embed(color=user.color, title=f"`{user.name}`'s timezone")
-        tzbed.set_thumbnail(url=user.avatar.url)
+        if (user.avatar.url!=None) tzbed.set_thumbnail(url=user.avatar.url)
         tzbed.description = f"""**Current time**: `{now.strftime("%d/%m/%Y, %H:%M:%S")}`
 
 **Name**: `{timezone}`
