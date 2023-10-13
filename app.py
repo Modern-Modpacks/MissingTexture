@@ -444,7 +444,7 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None):
 **Name**: `{timezone}`
 **Abbreviation**: `{now.strftime("%Z")}`
 **UTC offset**: `{now.strftime("%z")}`"""
-        if selfdata and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round(((datetime.now(tz(selftz)).astimezone(tz(timezone))-now).seconds/3600)*100)/100}`"
+        if selfdata and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round((abs(now.replace(tzinfo=None)-datetime.now(tz(selftz)).replace(tzinfo=None)).seconds/3600)*100)/100}`"
 
         if i==0: await interaction.response.send_message(embed=tzbed, ephemeral=True)
         else: await (await interaction.original_response()).edit(embed=tzbed)
