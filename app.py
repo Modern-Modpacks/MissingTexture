@@ -5,7 +5,7 @@
 # So no touchy touch
 
 from warnings import filterwarnings 
-# filterwarnings("ignore")
+filterwarnings("ignore")
 
 import discord
 from discord import app_commands, interactions
