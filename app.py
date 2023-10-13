@@ -251,12 +251,16 @@ async def on_message(message:discord.Message):
                         else: await message.reply(chunks[0], mention_author=False)
                         for c in chunks[1:]:
                             await (thread if thread!=None else message.channel).send(c)
+                            await sleep(.25)
                     else: 
                         if thread!=None: await thread.send(value)
                         else: await message.reply(value, mention_author=False)
                 else: 
                     if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")])
                     else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
+
+                await sleep(.25)
+
 
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError):
