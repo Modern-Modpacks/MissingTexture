@@ -214,17 +214,25 @@ async def on_ready():
 async def on_message(message:discord.Message):
     if message.author.bot: return
 
-    if message.channel.id in AUTO_THREAD_CHANNELS: await message.create_thread(name=message.content)
+    thread = None
+    if message.channel.id in AUTO_THREAD_CHANNELS: thread = await message.create_thread(name="Post by "+message.author.display_name)
+
+    data = get_data_json()
+    for name, value in data.items():
+        for i in value["pings"]:
+            user = await client.fetch_user(name)
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(user).read_messages: 
+                await user.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
+                break
 
     for name, value in RESPONSES[str(message.guild.id)].items():
-        keyword1 = name.removeprefix("^")
-        keyword = name.removeprefix("%")
-        matchh = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
+        keyword = name.removeprefix("^").removeprefix("%")
+        match = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
 
-        if matchh and f":{keyword}:" not in message.content.lower():
+        if match and f":{keyword}:" not in message.content.lower():
             if (not name.startswith("^") or message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"])) or (name.startswith("%") and message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["member-general"], CHANNELS["mm"]["botspam"])):
                 if not value.startswith("$"): 
-                    value = f"> {matchh[0]}\n\n{value}"
+                    value = f"> {match[0]}\n\n{value}"
                     if len(value)>2000:
                         chunks = []
                         chunk = ""
@@ -239,19 +247,17 @@ async def on_message(message:discord.Message):
                                 chunklength = len(word)
                             else: chunk += " "+word
 
-                        await message.reply(chunks[0], mention_author=False)
+                        if thread!=None: await thread.send(chunks[0])
+                        else: await message.reply(chunks[0], mention_author=False)
                         for c in chunks[1:]:
-                            await message.channel.send(c)
-                    else: await message.reply(value, mention_author=False)
-                else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
+                            await (thread if thread!=None else message.channel).send(c)
+                    else: 
+                        if thread!=None: await thread.send(value)
+                        else: await message.reply(value, mention_author=False)
+                else: 
+                    if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")])
+                    else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
 
-    data = get_data_json()
-    for name, value in data.items():
-        for i in value["pings"]:
-            user = await client.fetch_user(name)
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(user).read_messages: 
-                await user.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
-                break
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError):
     errorbed = discord.Embed(color=discord.Color.red(), title="I AM SHITTING MYSELF!1!1", description=f"""Details:
@@ -259,7 +265,7 @@ async def on_error(interaction: interactions.Interaction, err: discord.app_comma
 Channel: <#{interaction.channel.id}>
 User: <@{interaction.user.id}>
 Time: <t:{round(interaction.created_at.timestamp())}:f>""")
-    originalcommand = f"{interaction.command.name} "+" ".join([i["name"]+":"+i["value"] for i in interaction.data["options"]])
+    originalcommand = f"{interaction.command.name} "+" ".join([i["name"]+":"+(i["value"] if "value" in i.keys() else None) for i in interaction.data["options"]])
     errorbed.set_footer(text=f"The command that caused the error: \"/{originalcommand}\"")
     await (await client.fetch_channel(CHANNELS["mm"]["modlogs"])).send(embed=errorbed)
 
@@ -424,14 +430,15 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None):
     timezone = data["tz"] if "tz" in data.keys() else ""
 
     if not timezone:
-        await interaction.response.send_message(f"`{user.name}` hasn't set their timezone yet. If you want, ping them and tell them how to do so!", ephemeral=True)
+        await interaction.response.send_message(f"{user.display_name} hasn't set their timezone yet. If you want, ping them and tell them how to do so!", ephemeral=True)
         return
 
     for i in range(120):
         now = datetime.now(tz(timezone))
 
-        tzbed = discord.Embed(color=user.color, title=f"`{user.name}`'s timezone")
+        tzbed = discord.Embed(color=user.color, title=f"{user.display_name}'s timezone")
         if (user.avatar!=None): tzbed.set_thumbnail(url=user.avatar.url)
+        else: tzbed.set_thumbnail(url=user.default_avatar.url)
         tzbed.description = f"""**Current time**: `{now.strftime("%d/%m/%Y, %H:%M:%S")}`
 
 **Name**: `{timezone}`
