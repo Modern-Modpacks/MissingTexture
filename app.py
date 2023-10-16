@@ -448,14 +448,14 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None):
         now = datetime.now(tz(timezone))
 
         tzbed = discord.Embed(color=user.color, title=f"{user.display_name}'s timezone")
-        if (user.avatar!=None): tzbed.set_thumbnail(url=user.avatar.url)
+        if user.avatar!=None: tzbed.set_thumbnail(url=user.avatar.url)
         else: tzbed.set_thumbnail(url=user.default_avatar.url)
         tzbed.description = f"""**Current time**: `{now.strftime("%d/%m/%Y, %H:%M:%S")}`
 
 **Name**: `{timezone}`
 **Abbreviation**: `{now.strftime("%Z")}`
 **UTC offset**: `{now.strftime("%z")}`"""
-        if selfdata and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round((abs(now.replace(tzinfo=None)-datetime.now(tz(selftz)).replace(tzinfo=None)).seconds/3600)*100)/100}`"
+        if selftz and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round((abs(now.replace(tzinfo=None)-datetime.now(tz(selftz)).replace(tzinfo=None)).seconds/3600)*100)/100}`"
 
         if i==0: await interaction.response.send_message(embed=tzbed, ephemeral=True)
         else: await (await interaction.original_response()).edit(embed=tzbed)
