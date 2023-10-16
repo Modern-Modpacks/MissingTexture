@@ -14,6 +14,7 @@ from asyncio import sleep, run_coroutine_threadsafe
 from re import search, IGNORECASE
 from sys import argv
 from os import _exit, path, getenv
+from random import choice
 from time import time
 from json import loads, load, dump
 from hashlib import md5
@@ -41,7 +42,9 @@ RESPONSES = {
     "1025316079226064966": {
         "neat": "Neat is a mod by Vazkii",
         "nether chest": "Nether Chest",
-        "rats": "Heehee, humorous rodent modification.",
+        "rats": (
+            "Heehee, humorous rodent modification.",
+        ),
         "sex": "Where sex",
 
         "^bigbee": "$Bigbee",
@@ -56,6 +59,9 @@ you fucking homeless piece of fucking crap thats looking for attention online ju
 not even pointing out your mentall illnesses aka the pronouns that you collected like your dad collected HIV at your age
 everyone has prefrences and if you touch thoose you are nothing more than an literal asshole""",
         "^leclowndu": "This is so fucking stupid, as much as i might hate stuff that has to do with microcelebrities, leclowndu and private smps with nothing to do with the subreddit except they have mods, this has nothing to do with the subreddit and there isn't a real reason to ban leclowndu from the subreddit, he is literally just some guy with a normal private life and stuff, he is not a fucking celebrity with standars to uphold. Yeah, it might be shitty behavior and childish, but it wouldn't be different from any other kid from this subreddit doing this kind of shit in a private server with his friends, and one of them deciding to upload it to this subreddit, where most people dont give a fuck because it has nothing to do with modded minecraft mods. You could consider doing so if this was someone like, idk, Direwolf or smth, but leclowndu is just some niche microceleb, its stupid",
+        "^regian": """chronically unfunny text-to-speech videos with overused "1.12.2> doesnt exist" jokes, and performance mods totally not removed intentionally, or his pc is that bad.
+
+gt elitists love to think they have some sort of phd, but spontaneously combust when they have to piece together a mechanical mixer.""",
 
         "^rftools": "RFTools is a mod by Vazkii",
         "^greg": "STOP POSTING ABOUT GREGTECH, I'M TIRED OF SEEING IT! My friends on reddit send me memes, on discord it's fucking memes - I was in a subreddit, right? and ALLLLLLLLL of the POSTS are just GregTech stuff. I- I showed my Champion underwear to my girlfriend, and the logo I flipped it and I said, \"Hey babe: When the underwear greg :joy: :joy: :joy:\"",
@@ -228,6 +234,7 @@ async def on_message(message:discord.Message):
     for name, value in RESPONSES[str(message.guild.id)].items():
         keyword = name.removeprefix("^").removeprefix("%")
         match = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
+        if type(value)==tuple: value = choice(value)
 
         if match and f":{keyword}:" not in message.content.lower():
             if (not name.startswith("^") or message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"])) or (name.startswith("%") and message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["member-general"], CHANNELS["mm"]["botspam"])):
