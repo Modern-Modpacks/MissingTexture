@@ -226,9 +226,9 @@ async def on_message(message:discord.Message):
     data = get_data_json()
     for name, value in data.items():
         for i in value["pings"]:
-            user = await client.fetch_user(name)
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(user).read_messages: 
-                await user.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
+            member = await message.guild.fetch_member(name)
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(member).read_messages: 
+                await member.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
 
     for name, value in RESPONSES[str(message.guild.id)].items():
