@@ -102,7 +102,8 @@ The computer must not be connected to the outside world through any means, inclu
         "^quanpack": "$hop on quanpack"
     },
     "1099658057010651176": {},
-    "1152341294434238544": {}
+    "1152341294434238544": {},
+    "1165682213589876737": {}
 }
 MACROS = {
     "1025316079226064966": {
@@ -166,7 +167,8 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
         "myspoon": "@finland"
     },
     "1099658057010651176": {},
-    "1152341294434238544": {}
+    "1152341294434238544": {},
+    "1165682213589876737": {}
 }
 CHANNELS = {
     "mm": {
@@ -196,7 +198,8 @@ SUBSCRIPT = {
 GUILDS = (
     discord.Object(1025316079226064966), # MM
     discord.Object(1099658057010651176), # GTB
-    discord.Object(1152341294434238544) # AmogBlock
+    discord.Object(1152341294434238544), # AmogBlock
+    discord.Object(1165682213589876737) # HehVerse
 )
 GROUPS = {
     "macros": app_commands.Group(name="macro", description="Commands that are related to macros"),
