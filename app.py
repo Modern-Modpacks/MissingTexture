@@ -510,7 +510,7 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
         await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
 
 @tree.command(name = "kjspkglookup", description = "Gets info about a KJSPKG package")
-@app_commands.autocomplete(package=fuzz_autocomplete(get(KJSPKG_PKGS_LINK).json().keys()))
+@app_commands.autocomplete(package=fuzz_autocomplete(sorted(get(KJSPKG_PKGS_LINK).json().keys())))
 @app_commands.describe(package="Package name")
 async def kjspkg(interaction:interactions.Interaction, package:str):
     kjsbed = discord.Embed(color=discord.Color.from_str("#460067"), title=package.replace("-", " ").title(), url="https://kjspkglookup.modernmodpacks.site/#"+package)
