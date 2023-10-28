@@ -246,8 +246,10 @@ async def on_message(message:discord.Message):
 
     data = get_data_json()
     for name, value in data.items():
+        member = message.guild.get_member(name)
+        if member==None: continue
+
         for i in value["pings"]:
-            member = await message.guild.fetch_member(name)
             if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(member).read_messages: 
                 await member.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
                 break
@@ -287,7 +289,7 @@ async def on_message(message:discord.Message):
                     if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")])
                     else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
 
-                await sleep(.25)
+                await sleep(.5)
 
 
 @tree.error
