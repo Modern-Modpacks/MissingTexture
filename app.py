@@ -102,7 +102,8 @@ The computer must not be connected to the outside world through any means, inclu
         "^quanpack": "$hop on quanpack"
     },
     "1099658057010651176": {},
-    "1152341294434238544": {}
+    "1152341294434238544": {},
+    "1165682213589876737": {}
 }
 MACROS = {
     "1025316079226064966": {
@@ -166,7 +167,8 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
         "myspoon": "@finland"
     },
     "1099658057010651176": {},
-    "1152341294434238544": {}
+    "1152341294434238544": {},
+    "1165682213589876737": {}
 }
 CHANNELS = {
     "mm": {
@@ -196,7 +198,8 @@ SUBSCRIPT = {
 GUILDS = (
     discord.Object(1025316079226064966), # MM
     discord.Object(1099658057010651176), # GTB
-    discord.Object(1152341294434238544) # AmogBlock
+    discord.Object(1152341294434238544), # AmogBlock
+    discord.Object(1165682213589876737) # HehVerse
 )
 GROUPS = {
     "macros": app_commands.Group(name="macro", description="Commands that are related to macros"),
@@ -509,7 +512,7 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
         await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
 
 @tree.command(name = "kjspkglookup", description = "Gets info about a KJSPKG package")
-@app_commands.autocomplete(package=fuzz_autocomplete(get(KJSPKG_PKGS_LINK).json().keys()))
+@app_commands.autocomplete(package=fuzz_autocomplete(sorted(get(KJSPKG_PKGS_LINK).json().keys())))
 @app_commands.describe(package="Package name")
 async def kjspkg(interaction:interactions.Interaction, package:str):
     kjsbed = discord.Embed(color=discord.Color.from_str("#460067"), title=package.replace("-", " ").title(), url="https://kjspkglookup.modernmodpacks.site/#"+package)
