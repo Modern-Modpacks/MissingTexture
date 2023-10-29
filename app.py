@@ -1,43 +1,53 @@
-# Read the following as a haiku:
-#
-# This code is so bad
-# But it works surprisingly
-# So no touchy touch
+# IMPORTS
 
+# Disable the fuzz warning
 from warnings import filterwarnings 
 filterwarnings("ignore")
 
+# Discord.py and related
 import discord
 from discord import app_commands, interactions
 from discord.ext import tasks
+
+# System stuff
 from asyncio import sleep, run_coroutine_threadsafe
-from re import search, IGNORECASE
 from sys import argv
 from os import _exit, path, getenv
-from random import choice
-from time import time
-from json import loads, load, dump
-from hashlib import md5
 from subprocess import Popen, DEVNULL
-from flask import Flask, request
-from thefuzz import process
-from requests import get
-from httpx import AsyncClient
-from urllib import error, parse
-from datetime import datetime
-from pytz import all_timezones
-from pytz import timezone as tz
-from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
 from io import BytesIO
 from threading import Thread
 
+# Other built-in modules
+from re import search, IGNORECASE
+from random import choice
+from json import loads, load, dump
+from hashlib import md5
+
+# Dates and times
+from datetime import datetime
+from pytz import all_timezones
+from pytz import timezone as tz
+
+# Web-related stuff
+from flask import Flask, request
+from requests import get
+from httpx import AsyncClient
+from urllib import error, parse
+
+# Other pip modules
+from thefuzz import process
+from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
+
+# TRDNE
 from thisrecipedoesnotexist import create, get_path, run_server
 
-client = discord.Client(intents=discord.Intents.all())
-http = AsyncClient()
-tree = app_commands.CommandTree(client)
-server = Flask(__name__)
+# GLOBAL VARIABLES AND CONSTS
+client = discord.Client(intents=discord.Intents.all()) # Discord client
+tree = app_commands.CommandTree(client) # Discord bot command tree
+http = AsyncClient() # Async http client
+server = Flask(__name__) # Flask server
 
+# Automod responses
 RESPONSES = {
     "1025316079226064966": {
         "neat": "Neat is a mod by Vazkii",
@@ -105,6 +115,7 @@ The computer must not be connected to the outside world through any means, inclu
     "1152341294434238544": {},
     "1165682213589876737": {}
 }
+# Macros
 MACROS = {
     "1025316079226064966": {
         # Text macros
@@ -170,6 +181,7 @@ OptiFine is "fine" (pun not intended) when used with older versions, because the
     "1152341294434238544": {},
     "1165682213589876737": {}
 }
+# Channel ids
 CHANNELS = {
     "mm": {
         "memes": 1096717238553292882,
@@ -179,9 +191,11 @@ CHANNELS = {
         "modlogs": 1118925292589830236,
     }
 }
+# Channels where threads should be automatically created on message
 AUTO_THREAD_CHANNELS = [
     CHANNELS["mm"]["memes"]
 ]
+# Chem subscript
 SUBSCRIPT = {
     "1": "₁",
     "2": "₂",
@@ -195,19 +209,21 @@ SUBSCRIPT = {
     "0": "₀",
     "-": "₋"
 }
+# Servers
 GUILDS = (
     discord.Object(1025316079226064966), # MM
     discord.Object(1099658057010651176), # GTB
     discord.Object(1152341294434238544), # AmogBlock
     discord.Object(1165682213589876737) # HehVerse
 )
+# Command groups
 GROUPS = {
     "macros": app_commands.Group(name="macro", description="Commands that are related to macros"),
     "times": app_commands.Group(name="times", description="Set your timezone/get another person's tz")
 }
-KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json"
+KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
 
-statusi = None
+statusi = None # Status ticker position
 
 def get_data_json() -> dict: 
     if not path.exists("data.json"):
@@ -221,52 +237,61 @@ def add_user_to_data(data:dict, user:discord.User) -> dict:
         "tz": ""
     }
     return data
+
+# EVENTS
 @client.event
 async def on_ready():
-    if len(argv)>1 and argv[1]=="--sync":
-        for guild in GUILDS:
-            if client.get_guild(guild.id)==None: continue
+    for guild in GUILDS: # For every server in GUILDS
+        if client.get_guild(guild.id)==None: continue # if the bot is not in the server, skip it
 
-            tree.copy_global_to(guild=guild)
-            for group in GROUPS.values(): tree.add_command(group, guild=guild)
-            await tree.sync(guild=guild)
+        for group in GROUPS.values(): tree.add_command(group, guild=guild) # Add the command groups
 
+        if len(argv)>1 and argv[1]=="--sync": # If --sync is passed
+            tree.copy_global_to(guild=guild) # Copy global commands locally
+            await tree.sync(guild=guild) # Sync
+
+    # Start flask servers and cloudflare tunnels
     Thread(target=lambda: server.run(port=9999)).start()
-    Popen(("cloudflared", "tunnel", "run", "github_webhook"))
+    Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/translatorhook_config.yml"), "run", "github_webhook"))
     Thread(target=run_server).start()
     Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/trdne_config.yml"), "run", "thisrecipedoesnotexist"))
 
+    # Set the presence to online and start the status ticker animation
     await client.change_presence(status=discord.Status.online)
     update_status.start()
 
-    print(f"Logged in as: {client.user}")
+    print(f"Logged in as: {client.user}") # Notify when done
 @client.event
 async def on_message(message:discord.Message):
-    if message.author.bot: return
+    if message.author.bot: return # Skip the message if the author is a bot
 
+    # Create thread if message in AUTO_THREAD_CHANNELS
     thread = None
     if message.channel.id in AUTO_THREAD_CHANNELS: thread = await message.create_thread(name="Post by "+message.author.display_name)
 
+    # Pings logic
     data = get_data_json()
-    for name, value in data.items():
-        member = message.guild.get_member(name)
-        if member==None: continue
+    for name, value in data.items(): # For every user
+        try: member = message.guild.get_member(name)
+        except discord.NotFound: continue # If the member is not found, skip
 
-        for i in value["pings"]:
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(member).read_messages: 
-                await member.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}")
+        for i in value["pings"]: # For user's every ping trigger
+            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(member).read_messages: # Check if the word is in the message, the author is not the person pinged and the person can see the channel the message is in
+                await member.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}") # Send that person a DM
                 break
 
-    for name, value in RESPONSES[str(message.guild.id)].items():
-        keyword = name.removeprefix("^").removeprefix("%")
-        match = search(r"\b"+keyword+r"\b", message.content, IGNORECASE)
-        if type(value)==tuple: value = choice(value)
+    # Response logic
+    for name, value in RESPONSES[str(message.guild.id)].items(): # For every automod response
+        keyword = name.removeprefix("^").removeprefix("%") # Key the trigger word without prefixes
+        match = search(r"\b"+keyword+r"\b", message.content, IGNORECASE) # Check if it's in the message
+        if type(value)==tuple: value = choice(value) # Randomly select a value if the response is a tuple
 
-        if match and f":{keyword}:" not in message.content.lower():
+        if match and f":{keyword}:" not in message.content.lower(): # If the trigger word is found and it's not a name of an emoji
+            # If the ^ prefix is present, check for if the channel is memes or botspam. If the % prefix is present, check for the same channels + member-general
             if (not name.startswith("^") or message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"])) or (name.startswith("%") and message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["member-general"], CHANNELS["mm"]["botspam"])):
-                if not value.startswith("$"): 
-                    value = f"> {match[0]}\n\n{value}"
-                    if len(value)>2000:
+                if not value.startswith("$"): # If the $ prefix is not present
+                    value = f"> {match[0]}\n\n{value}" # Add the quote to the message
+                    if len(value)>2000: # If the message is larger than discord's limit, split it into chunks at spaces
                         chunks = []
                         chunk = ""
                         chunklength = 0
@@ -280,23 +305,24 @@ async def on_message(message:discord.Message):
                                 chunklength = len(word)
                             else: chunk += " "+word
 
+                        # Send the first chunk with reply
                         if thread!=None: await thread.send(chunks[0])
                         else: await message.reply(chunks[0], mention_author=False)
-                        for c in chunks[1:]:
+                        for c in chunks[1:]: # Send all other chunks as regular messages
                             await (thread if thread!=None else message.channel).send(c)
-                            await sleep(.25)
-                    else: 
-                        if thread!=None: await thread.send(value)
-                        else: await message.reply(value, mention_author=False)
-                else: 
+                            await sleep(.25) # Delay between chunks
+                    else: # If the message is less than 2000 chars
+                        if thread!=None: await thread.send(value) # Send the response in thread if present
+                        else: await message.reply(value, mention_author=False) # Send the response in the same channel if not
+                else: # If the $ prefix is present, send the sticker with the response value
                     if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")])
                     else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
 
-                await sleep(.5)
+                await sleep(.5) # Delay between individual responses
 
 
 @tree.error
-async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError):
+async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
     errorbed = discord.Embed(color=discord.Color.red(), title="I AM SHITTING MYSELF!1!1", description=f"""Details:
 ```{err}```
 Channel: <#{interaction.channel.id}>
@@ -310,31 +336,35 @@ Time: <t:{round(interaction.created_at.timestamp())}:f>""")
     if interaction.response.is_done(): await interaction.followup.send(content=errmsg, ephemeral=True)
     else: await interaction.response.send_message(content=errmsg, ephemeral=True)
 
+# TASKS
 @tasks.loop(seconds=5)
-async def update_status():
+async def update_status(): # Update the status ticker animation
     global statusi
 
-    screen = 7
-    status = "🟥🟧🟨🟩🟦🟪⬛⬜🟫"
+    screen = 7 # Status size
+    status = "🟥🟧🟨🟩🟦🟪⬛⬜🟫" # Status string
 
     if statusi==None: statusi = screen-1
 
-    statusstring = status[-(screen-1):]+status
-    await client.change_presence(activity=discord.Activity(state=statusstring[statusi:statusi+screen], name="Why the fuck do I have to define this it doesn't even show up", type=discord.ActivityType.custom))
+    statusstring = status[-(screen-1):]+status # Slice the string
+    await client.change_presence(activity=discord.Activity(state=statusstring[statusi:statusi+screen], name="Why the fuck do I have to define this it doesn't even show up", type=discord.ActivityType.custom)) # Show it
    
+    # Loop
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
 
-def fuzz_autocomplete(choices):
-    async def _autocomplete(interaction: interactions.Interaction, current:str) -> list: 
-        if type(choices)==dict: newchoices = list(choices[str(interaction.guild.id)].keys())
-        else: newchoices = list(choices)
-        return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, newchoices, limit=10) if s>60] if current else newchoices[:10])]
-    return _autocomplete
+# HELPER FUNCTIONS
+def fuzz_autocomplete(choices): # The fuzz autocomplete
+    async def _autocomplete(interaction: interactions.Interaction, current:str) -> list: # Define an autocomplete coroutine
+        if type(choices)==dict: newchoices = list(choices[str(interaction.guild.id)].keys()) # An exception for macros
+        else: newchoices = list(choices) # Else, make sure that choices is a list
+        return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, newchoices, limit=10) if s>60] if current else newchoices[:10])] # Find the closest ones based on fuzz
+    return _autocomplete # Return the coroutine
 
+# COMMANDS
 @GROUPS["macros"].command(name="run", description="Sends a quick macro message to the chat")
 @app_commands.autocomplete(name=fuzz_autocomplete(MACROS))
-async def macro(interaction:interactions.Interaction, name:str):
+async def macro(interaction:interactions.Interaction, name:str): # Run a macro
     localmacros = MACROS[str(interaction.guild.id)]
     if name not in localmacros.keys():
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
@@ -343,9 +373,9 @@ async def macro(interaction:interactions.Interaction, name:str):
     text = localmacros[name]
 
     if not text.startswith("@"): await interaction.response.send_message(content=text)
-    else: await interaction.response.send_message(content=localmacros[text.removeprefix("@")])
+    else: await interaction.response.send_message(content=localmacros[text.removeprefix("@")]) # If the macro begins with @, link it to another macro
 @GROUPS["macros"].command(name="list", description="Lists all available macros")
-async def macrolist(interaction:interactions.Interaction):
+async def macrolist(interaction:interactions.Interaction): # List macros
     localmacros = MACROS[str(interaction.guild.id)]
 
     if localmacros: await interaction.response.send_message(content=" | ".join(localmacros.keys()), ephemeral=True)
@@ -354,74 +384,77 @@ async def macrolist(interaction:interactions.Interaction):
 @tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.")
 @app_commands.describe(query="Compound/Substance name or PubChem CID/SID", type="Search for Compounds/Substances. Optional, \"Compound\" by default", bettersearch="Enables better search feature, which might take longer. Optional, false by default")
 @app_commands.choices(type=[app_commands.Choice(name=i, value=i) for i in ("Compound", "Substance")])
-async def chemsearch(interaction:interactions.Interaction, query:str, type:str="compound", bettersearch:bool=False):
+async def chemsearch(interaction:interactions.Interaction, query:str, type:str="compound", bettersearch:bool=False): # Search for chem compounds/substances
     await interaction.response.defer()
 
     type = type.lower()
-    typeindex = 0 if type.lower()=="compound" else 1
-    results = None
-    pubchemerr = None
+    typeindex = 0 if type.lower()=="compound" else 1 # 0 if compound, 1 if substance
+    results = None # Request result
+    pubchemerr = None # Pub chem down error (if present)
 
+    # While results are not defined
     while results==None:
-        try: 
-            if query.isnumeric(): 
+        try: # Try to get them
+            if query.isnumeric(): # If the query is a number, use that as cid/sid
                 try: results = [(Compound.from_cid(int(query)) if typeindex==0 else Substance.from_sid(int(query)))]
                 except (BadRequestError, ValueError): results = []
-            else: 
+            else: # Else, search using it
                 if typeindex==0: results = get_compounds(query, "name")
                 else: results = get_substances(query, "name")
-        except error.URLError: 
-            if pubchemerr==None: pubchemerr = await interaction.channel.send("It looks like pubchem is down, please wait a few minutes for it to go back online.")
-            await sleep(5)
+        except error.URLError: # If pubchem is down
+            if pubchemerr==None: pubchemerr = await interaction.channel.send("It looks like pubchem is down, please wait a few minutes for it to go back online.") # Send a warning to the user (if it wasn't done already)
+            await sleep(5) # 5 second cooldown
             continue
 
     if len(results)<1: 
-        await interaction.followup.send(content="Whoops, molecule not found!")
+        await interaction.followup.send(content=f"Whoops, {type} not found!") # Notify user is the compound/substance is not found
         return
 
-    if bettersearch and not query.isnumeric():
+    if bettersearch and not query.isnumeric(): # If bettersearch is enabled
         namedict = {(await http.get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/{type}/{i.cid if typeindex==0 else i.sid}/JSON")).json()["Record"]["RecordTitle"]: i for i in results}
-        result : (Compound if typeindex==0 else Substance) = namedict[process.extract(query, namedict.keys(), limit=1)[0][0]]
-    else: result = results[0]
+        result : (Compound if typeindex==0 else Substance) = namedict[process.extract(query, namedict.keys(), limit=1)[0][0]] # Use thefuzz search instead of the regular one (takes more time)
+    else: result = results[0] # Else, use the basic one (worse results)
     
     id = result.cid if typeindex==0 else result.sid
-    info = (await http.get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/{type}/{id}/JSON")).json()["Record"]
+    info = (await http.get(f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/{type}/{id}/JSON")).json()["Record"] # Get info about the compound/substance
 
-    def find_wikipedia_url(inf) -> str:
-        names = [i for i in inf["Section"] if i["TOCHeading"]=="Names and Identifiers"]
-        if len(names)<1: return
+    def find_wikipedia_url(inf) -> str: # Find url to the wikipedia article
+        names = [i for i in inf["Section"] if i["TOCHeading"]=="Names and Identifiers"] # Get names and identifiers
+        if len(names)<1: return # Skip if not found
         names = names[0]
 
-        other = [i for i in names["Section"] if i["TOCHeading"]=="Other Identifiers"]
-        if len(other)<1: return
+        other = [i for i in names["Section"] if i["TOCHeading"]=="Other Identifiers"] # Get other identifiers
+        if len(other)<1: return # Skip if not found
         other = other[0]
 
-        wikipedia = [i for i in other["Section"] if i["TOCHeading"]=="Wikipedia"]
-        if len(wikipedia)<1: return
+        wikipedia = [i for i in other["Section"] if i["TOCHeading"]=="Wikipedia"] # Get the wikipedia identifier
+        if len(wikipedia)<1: return # Skip if not found
         wikipedia = wikipedia[0]["Information"][0]["URL"]
 
-        return wikipedia
+        return wikipedia # Return the url
     def has_3d_conformer(inf) -> bool:
-        structures = [i for i in inf["Section"] if i["TOCHeading"]=="Structures"]
-        if len(structures)<1: return False
+        structures = [i for i in inf["Section"] if i["TOCHeading"]=="Structures"] # Get structures
+        if len(structures)<1: return False # Return false if they don't exist
         structures = structures[0]
 
-        conformer = [i for i in structures["Section"] if i["TOCHeading"]=="3D Conformer"]
-        if len(conformer)<1: return False
+        conformer = [i for i in structures["Section"] if i["TOCHeading"]=="3D Conformer"] # Get the 3d conformer
+        if len(conformer)<1: return False # Return false if it doesn't exist
         conformer = conformer[0]
 
         return True
 
+    # Get the wikipedia url using the find_wikipedia_url function if the chemical is a compound, else just use the lowercase name 
     wikipedia_url = find_wikipedia_url(info) if typeindex==0 else f"https://en.m.wikipedia.org/wiki/{parse.quote(info['RecordTitle']).lower()}"
-    wikiinfo = None
-    if wikipedia_url!=None:
-        wikiinfo = get(wikipedia_url.replace("/wiki/", "/api/rest_v1/page/summary/"))
-        wikiinfo = wikiinfo.json() if wikiinfo.status_code!=404 else None
+    wikiinfo = None # Info from wikipedia
+    if wikipedia_url!=None: # If wikipedia_url is defined
+        wikiinfo = get(wikipedia_url.replace("/wiki/", "/api/rest_v1/page/summary/")) # Send a request to their url
+        wikiinfo = wikiinfo.json() if wikiinfo.status_code==200 else None # Get the summary if the page was found
 
-    if typeindex==0:
-        formula = result.molecular_formula
-        for k, v in SUBSCRIPT.items(): formula = formula.replace(k, v)
+    if typeindex==0: # If the chemical is a compound
+        formula = result.molecular_formula # Get the formula
+        for k, v in SUBSCRIPT.items(): formula = formula.replace(k, v) # Replace numbers with the subscript
 
+    # Create an embed with info
     chembed = discord.Embed(color=discord.Color.green(), title=info["RecordTitle"].title(), description="", url=f"https://pubchem.ncbi.nlm.nih.gov/{type}/{id}")
     chembed.set_footer(text=f"Info provided by PubChem. {type[0].upper()}ID: {id}")
     if typeindex==0: chembed.description += f"**Formula**: {formula}\n**Weight**: {result.molecular_weight}"
@@ -430,12 +463,12 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
     if wikipedia_url!=None and wikiinfo!=None: chembed.description += f"\n\n[**From the wikipedia article**:]({wikipedia_url})\n{wikiinfo['extract']}"
     chembed.set_thumbnail(url=f"https://pubchem.ncbi.nlm.nih.gov/image/imgsrv.fcgi?{type[0]}id={id}&t=l")
 
-    if pubchemerr!=None: await pubchemerr.delete()
-    await interaction.followup.send(embed=chembed)
+    if pubchemerr!=None: await pubchemerr.delete() # Delete the "pubchem down" warning if present
+    await interaction.followup.send(embed=chembed) # Send the embed
 
 @tree.command(name = "pings", description = "Set your string pings")
 @app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive")
-async def editpings(interaction:interactions.Interaction, pings:str):
+async def editpings(interaction:interactions.Interaction, pings:str): # Set pings
     data = get_data_json()
     data = add_user_to_data(data, interaction.user)
     data[str(interaction.user.id)]["pings"] = [i.lower() for i in pings.replace(", ", ",").split(",")]
@@ -445,7 +478,7 @@ async def editpings(interaction:interactions.Interaction, pings:str):
 @GROUPS["times"].command(name = "set", description = "Set your timezone")
 @app_commands.describe(timezone = "Your timezone")
 @app_commands.autocomplete(timezone=fuzz_autocomplete(all_timezones))
-async def settz(interaction:interactions.Interaction, timezone:str):
+async def settz(interaction:interactions.Interaction, timezone:str): # Set timezone
     data = get_data_json()
     data = add_user_to_data(data, interaction.user)
     data[str(interaction.user.id)]["tz"] = timezone
@@ -454,7 +487,7 @@ async def settz(interaction:interactions.Interaction, timezone:str):
     await interaction.response.send_message(content="Timezone set! Your new timezone is: `"+timezone+"`.", ephemeral=True)
 @GROUPS["times"].command(name = "get", description = "Get yours or another user's timezone")
 @app_commands.describe(user = "The user to get the timezone from")
-async def gettz(interaction:interactions.Interaction, user:discord.User=None):
+async def gettz(interaction:interactions.Interaction, user:discord.User=None): # Get timezone
     if user==None: user = interaction.user
 
     data = get_data_json()
@@ -466,13 +499,14 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None):
     data = data[str(user.id)]
     timezone = data["tz"] if "tz" in data.keys() else ""
 
-    if not timezone:
+    if not timezone: # If the timezone is not set, notify the user
         await interaction.response.send_message(f"{user.display_name} hasn't set their timezone yet. If you want, ping them and tell them how to do so!", ephemeral=True)
         return
 
-    for i in range(120):
+    for i in range(120): # For 2 minutes
         now = datetime.now(tz(timezone))
 
+        # Create a new tz info embed
         tzbed = discord.Embed(color=user.color, title=f"{user.display_name}'s timezone")
         if user.avatar!=None: tzbed.set_thumbnail(url=user.avatar.url)
         else: tzbed.set_thumbnail(url=user.default_avatar.url)
@@ -483,17 +517,19 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None):
 **UTC offset**: `{now.strftime("%z")}`"""
         if selftz and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round((abs(now.replace(tzinfo=None)-datetime.now(tz(selftz)).replace(tzinfo=None)).seconds/3600)*100)/100}`"
 
-        if i==0: await interaction.response.send_message(embed=tzbed, ephemeral=True)
-        else: await (await interaction.original_response()).edit(embed=tzbed)
-
-        await sleep(1)
+        if i==0: # If it's the first second
+            await interaction.response.send_message(embed=tzbed, ephemeral=True) # Send the response as a regular message
+            sleep(datetime.now().microsecond / 1000000) # Sleep untill the next second
+        else:
+            await (await interaction.original_response()).edit(embed=tzbed) # Edit the already existing one
+            await sleep(1) # Sleep 1 second
     
-    await interaction.delete_original_response()
+    await interaction.delete_original_response() # After 2 minutes, delete the response
     
 @tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
 @app_commands.describe(type="The type of crafting table", outputitem="Output item id", exportrecipe="Whether or not to export the recipe to a kjs/ct script format")
-async def recipe(interaction:interactions.Interaction, type:str=None, outputitem:str=None, exportrecipe:bool=False):
+async def recipe(interaction:interactions.Interaction, type:str=None, outputitem:str=None, exportrecipe:bool=False): # TRDNE
     if outputitem!=None:
         if ":" not in outputitem: outputitem = "minecraft:"+outputitem
         if get_path(outputitem)==None:
@@ -502,19 +538,21 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
 
     await interaction.response.defer()
 
+    # Save the image as temp and send it
     with BytesIO() as imgbin:
         img, links = create(type, outputitem, exportrecipe)
         img.save(imgbin, "PNG")
         imgbin.seek(0)
 
         buttons = discord.ui.View()
-        if links!=None: buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0]))
+        if links!=None: buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0])) # If exportrecipe is passed, create and send the link to the kjs exported recipe
         await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
 
 @tree.command(name = "kjspkglookup", description = "Gets info about a KJSPKG package")
 @app_commands.autocomplete(package=fuzz_autocomplete(sorted(get(KJSPKG_PKGS_LINK).json().keys())))
 @app_commands.describe(package="Package name")
-async def kjspkg(interaction:interactions.Interaction, package:str):
+async def kjspkg(interaction:interactions.Interaction, package:str): # kjspkglookup
+    # Create an embed
     kjsbed = discord.Embed(color=discord.Color.from_str("#460067"), title=package.replace("-", " ").title(), url="https://kjspkglookup.modernmodpacks.site/#"+package)
     kjsbed.set_thumbnail(url="https://raw.githubusercontent.com/Modern-Modpacks/assets/main/Icons/Other/kjspkg.png")
 
@@ -525,16 +563,19 @@ async def kjspkg(interaction:interactions.Interaction, package:str):
     infourl = f"https://raw.githubusercontent.com/{repo}/{branch}/{path}.kjspkg"
     info = get(infourl).json()
 
+    # Fill the embed with info
     kjsbed.description = f"""**{info["description"]}**
 [**Source**](https://github.com/{repo})
 
 **Versions**: {", ".join([f"1.{i+10}" for i in info["versions"]])}
 **Modloaders**: {", ".join([i.title() for i in info["modloaders"]])}"""
 
+    # Add deps and incompats if present
     if ("dependencies" in info.keys() and info["dependencies"]) or ("incompatibilities" in info.keys() and info["incompatibilities"]): kjsbed.description += "\n"
     if "dependencies" in info.keys() and info["dependencies"]: kjsbed.description += "\n**Dependencies**: "+", ".join([f"{i.split(':')[0].title()} ({i.split(':')[1].title()})" if ":" in i else i.title() for i in info["dependencies"]])
     if "incompatibilities" in info.keys() and info["incompatibilities"]: kjsbed.description += "\n**Incompatibilities**: "+", ".join([f"{i.split(':')[0].title()} ({i.split(':')[1].title()})" if ":" in i else i.title() for i in info["incompatibilities"]])
 
+    # Add commands
     kjsbed.description += f"""
 
 **Commands**:
@@ -543,35 +584,40 @@ async def kjspkg(interaction:interactions.Interaction, package:str):
 `kjspkg update {package}` to update
 `kjspkg pkg {package}` to see more info"""
 
+    # Get the repo's author avatar from github using its api
     authoravatar = None
     ghinfo = get("https://api.github.com/repos/"+repo, headers={"Authorization": "Bearer "+getenv("GITHUB_KEY")} if getenv("GITHUBKEY")!=None else {})
     if ghinfo.status_code==200:
         ghinfo = ghinfo.json()
         authoravatar = ghinfo["owner"]["avatar_url"]
 
-    kjsbed.set_footer(text=f"Package made by {info['author']}. Info provided by KJSPKG.", icon_url=authoravatar)
+    kjsbed.set_footer(text=f"Package made by {info['author']}. Info provided by KJSPKG.", icon_url=authoravatar) # Set the footer
 
-    await interaction.response.send_message(embed=kjsbed)
+    await interaction.response.send_message(embed=kjsbed) # Send the embed
 
+# FLASK ENDPOINTS
 @server.post("/translators")
-async def on_translator_webhook():
-    data = loads(request.get_data())
-    commit = data["commits"][0] if data["commits"] else data["head_commit"]
-    changed_files = [i for i in commit["added"]+commit["modified"] if i.endswith("en_us.json")]
+async def on_translator_webhook(): # Github translator webhook
+    data = loads(request.get_data()) # Change data
+    commit = data["commits"][0] if data["commits"] else data["head_commit"] # Get the head commit
+    changed_files = [i for i in commit["added"]+commit["modified"] if i.replace("-", "_").lower().endswith("en_us.json")] # All files named "en_us.json" or similar that were changed
 
-    if changed_files:
+    if changed_files: # If any files are in changed_files
         url = data["repository"]["url"]
         blob = f"{url}/blob/{data['repository']['default_branch']}"
 
+        # Create an embed with info
         transbed = discord.Embed(color = discord.Color.purple(), title = "Lang file(s) changed!", url=url)
         transbed.description = "Changed files:\n\n"+"\n".join([f"[{i}]({blob}/{i})" for i in changed_files])
         transbed.set_thumbnail(url = blob + "/src/main/resources/pack.png?raw=true")
         transbed.set_footer(text = "Changed mod: "+data["repository"]["name"].replace("-", " ").title())
 
+        # Send the message
         translators = run_coroutine_threadsafe(run_coroutine_threadsafe(client.fetch_guild(GUILDS[0].id), client.loop).result().fetch_channel(CHANNELS["mm"]["translators"]), client.loop).result()
         run_coroutine_threadsafe(translators.send(content="<@&1126286016781762680>", embed=transbed), client.loop)
 
-    return "OK"
+    return "OK" # Return 👍
 
-try: client.run(getenv("DISCORD_KEY"))
-except KeyboardInterrupt: pass
+# START BOT
+try: client.run(getenv("DISCORD_KEY")) # Get the key from env
+except KeyboardInterrupt: pass # Kill the bot on ctrl+c
