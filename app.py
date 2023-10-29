@@ -619,5 +619,8 @@ async def on_translator_webhook(): # Github translator webhook
     return "OK" # Return 👍
 
 # START BOT
-try: client.run(getenv("DISCORD_KEY")) # Get the key from env
+try:
+    token = getenv("DISCORD_KEY") # Get the key from env
+    if token!=None: client.run(token) # Launch the bot if it's present
+    else: print("Token not found!") # Else, quit
 except KeyboardInterrupt: pass # Kill the bot on ctrl+c
