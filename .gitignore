@@ -1,4 +1,5 @@
 data.json
+missing.db*
 env
 .env
 recipe.png

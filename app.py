@@ -16,12 +16,14 @@ from os import _exit, path, getenv
 from subprocess import Popen, DEVNULL
 from io import BytesIO
 from threading import Thread
+from traceback import format_exc
 
 # Other built-in modules
 from re import search, IGNORECASE
 from random import choice
-from json import loads, load, dump
+from json import loads, load, dump, dumps
 from hashlib import md5
+from sqlite3 import connect
 
 # Dates and times
 from datetime import datetime
@@ -44,6 +46,8 @@ from thisrecipedoesnotexist import create, get_path, run_server
 # GLOBAL VARIABLES AND CONSTS
 client = discord.Client(intents=discord.Intents.all()) # Discord client
 tree = app_commands.CommandTree(client) # Discord bot command tree
+db = connect("missing.db") # Sqlite db
+dbcursor = db.cursor() # Sqlite cursor
 http = AsyncClient() # Async http client
 server = Flask(__name__) # Flask server
 
@@ -225,19 +229,6 @@ KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/mai
 
 statusi = None # Status ticker position
 
-def get_data_json() -> dict: 
-    if not path.exists("data.json"):
-        with open("data.json", "w+") as f: f.write("{}")
-    return load(open("data.json"))
-def dump_data_json(data:dict): 
-    with open("data.json", "w") as f: dump(data, f)
-def add_user_to_data(data:dict, user:discord.User) -> dict:
-    if str(user.id) not in data.keys(): data[str(user.id)] = {
-        "pings": [],
-        "tz": ""
-    }
-    return data
-
 # EVENTS
 @client.event
 async def on_ready():
@@ -250,14 +241,21 @@ async def on_ready():
             tree.copy_global_to(guild=guild) # Copy global commands locally
             await tree.sync(guild=guild) # Sync
 
+    # Init db
+    dbcursor.execute("""CREATE TABLE IF NOT EXISTS users (
+        id integer UNIQUE,
+        pings json,
+        tz text
+    )""")
+    db.commit()
+
     # Start flask servers and cloudflare tunnels
     Thread(target=lambda: server.run(port=9999)).start()
     Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/translatorhook_config.yml"), "run", "github_webhook"))
     Thread(target=run_server).start()
     Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/trdne_config.yml"), "run", "thisrecipedoesnotexist"))
 
-    # Set the presence to online and start the status ticker animation
-    await client.change_presence(status=discord.Status.online)
+    # Start the status ticker animation
     update_status.start()
 
     print(f"Logged in as: {client.user}") # Notify when done
@@ -270,14 +268,14 @@ async def on_message(message:discord.Message):
     if message.channel.id in AUTO_THREAD_CHANNELS: thread = await message.create_thread(name="Post by "+message.author.display_name)
 
     # Pings logic
-    data = get_data_json()
-    for name, value in data.items(): # For every user
-        try: member = message.guild.get_member(name)
+    users = dbcursor.execute("SELECT * FROM users WHERE id != ?", [message.author.id]).fetchall() # Get all users except the author from db
+    for id, pings, *_ in users:
+        try: member = message.guild.get_member(id)
         except discord.NotFound: continue # If the member is not found, skip
 
-        for i in value["pings"]: # For user's every ping trigger
-            if search(r"\b"+i+r"\b", message.content, IGNORECASE) and str(message.author.id)!=name and message.channel.permissions_for(member).read_messages: # Check if the word is in the message, the author is not the person pinged and the person can see the channel the message is in
-                await member.send(f"You got pinged because you have \"{i}\" as a word that you get pinged at. Message link: {message.jump_url}") # Send that person a DM
+        for ping in loads(pings): # For user's every ping trigger
+            if search(r"\b"+ping+r"\b", message.content, IGNORECASE) and message.channel.permissions_for(member).read_messages: # Check if the word is in the message and the person can see the channel the message is in
+                await member.send(f"You got pinged because you have \"{ping}\" as a word that you get pinged at. Message link: {message.jump_url}") # Send that person a DM
                 break
 
     # Response logic
@@ -324,7 +322,7 @@ async def on_message(message:discord.Message):
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
     errorbed = discord.Embed(color=discord.Color.red(), title="I AM SHITTING MYSELF!1!1", description=f"""Details:
-```{err}```
+```{format_exc()}```
 Channel: <#{interaction.channel.id}>
 User: <@{interaction.user.id}>
 Time: <t:{round(interaction.created_at.timestamp())}:f>""")
@@ -354,6 +352,13 @@ async def update_status(): # Update the status ticker animation
     else: statusi = 0
 
 # HELPER FUNCTIONS
+def add_user_to_data(user:discord.User) -> None: # Add a user to the sqlite db
+    dbcursor.execute(f"""INSERT OR IGNORE INTO users VALUES (
+        ?,
+        "[]",
+        ""
+    )""", [user.id])
+    db.commit()
 def fuzz_autocomplete(choices): # The fuzz autocomplete
     async def _autocomplete(interaction: interactions.Interaction, current:str) -> list: # Define an autocomplete coroutine
         if type(choices)==dict: newchoices = list(choices[str(interaction.guild.id)].keys()) # An exception for macros
@@ -469,35 +474,35 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
 @tree.command(name = "pings", description = "Set your string pings")
 @app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive")
 async def editpings(interaction:interactions.Interaction, pings:str): # Set pings
-    data = get_data_json()
-    data = add_user_to_data(data, interaction.user)
-    data[str(interaction.user.id)]["pings"] = [i.lower() for i in pings.replace(", ", ",").split(",")]
-    dump_data_json(data)
+    add_user_to_data(interaction.user)
 
-    await interaction.response.send_message(content="Pings set! Your new pings are: `"+",".join(data[str(interaction.user.id)]["pings"])+"`.", ephemeral=True)
+    pings = [i.lower() for i in pings.replace(', ', ',').split(',')]
+    dbcursor.execute(f"UPDATE users SET pings = ? WHERE id = {interaction.user.id}", [dumps(pings)])
+    db.commit()
+
+    await interaction.response.send_message(content=f"Pings set! Your new pings are: `{','.join(pings)}`.", ephemeral=True)
 @GROUPS["times"].command(name = "set", description = "Set your timezone")
 @app_commands.describe(timezone = "Your timezone")
 @app_commands.autocomplete(timezone=fuzz_autocomplete(all_timezones))
 async def settz(interaction:interactions.Interaction, timezone:str): # Set timezone
-    data = get_data_json()
-    data = add_user_to_data(data, interaction.user)
-    data[str(interaction.user.id)]["tz"] = timezone
-    dump_data_json(data)
+    add_user_to_data(interaction.user)
 
-    await interaction.response.send_message(content="Timezone set! Your new timezone is: `"+timezone+"`.", ephemeral=True)
+    if timezone not in all_timezones:
+        await interaction.response.send_message(f"Unknown timezone: `{timezone}`")
+        return
+    
+    dbcursor.execute(f"UPDATE users SET tz = ? WHERE id = {interaction.user.id}", [timezone])
+    db.commit()
+
+    await interaction.response.send_message(content=f"Timezone set! Your new timezone is: `{timezone}`.", ephemeral=True)
 @GROUPS["times"].command(name = "get", description = "Get yours or another user's timezone")
 @app_commands.describe(user = "The user to get the timezone from")
 async def gettz(interaction:interactions.Interaction, user:discord.User=None): # Get timezone
     if user==None: user = interaction.user
 
-    data = get_data_json()
-    data = add_user_to_data(add_user_to_data(data, user), interaction.user)
-    dump_data_json(data)
-
-    selfdata = data[str(interaction.user.id)]
-    selftz = selfdata["tz"] if "tz" in selfdata.keys() else ""
-    data = data[str(user.id)]
-    timezone = data["tz"] if "tz" in data.keys() else ""
+    add_user_to_data(interaction.user)
+    selftz = dbcursor.execute(f"SELECT tz FROM users WHERE id = {interaction.user.id}").fetchone()[0]
+    timezone = dbcursor.execute(f"SELECT tz FROM users WHERE id = {user.id}").fetchone()[0]
 
     if not timezone: # If the timezone is not set, notify the user
         await interaction.response.send_message(f"{user.display_name} hasn't set their timezone yet. If you want, ping them and tell them how to do so!", ephemeral=True)
