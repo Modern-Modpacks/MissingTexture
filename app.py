@@ -51,6 +51,25 @@ dbcursor = db.cursor() # Sqlite cursor
 http = AsyncClient() # Async http client
 server = Flask(__name__) # Flask server
 
+# DB tables
+TABLES = {
+    "users": {
+        "id": "integer UNIQUE",
+        "pings": "json",
+        "tz": "text"
+    },
+    "macros": {
+        "name": "text UNIQUE",
+        "content": "text",
+        "guildid": "integer"
+    },
+    "responses": {
+        "name": "text UNIQUE",
+        "content": "text",
+        "guildid": "integer",
+        "channels": "json"
+    }
+}
 # Automod responses
 RESPONSES = {
     "1025316079226064966": {
@@ -242,11 +261,14 @@ async def on_ready():
             await tree.sync(guild=guild) # Sync
 
     # Init db
-    dbcursor.execute("""CREATE TABLE IF NOT EXISTS users (
-        id integer UNIQUE,
-        pings json,
-        tz text
-    )""")
+    for table, contents in TABLES.items():
+        items = []
+        for name, value in contents.items(): items.append(name+" "+value)
+        items = ",\n".join(items)
+
+        dbcursor.execute(f"""CREATE TABLE IF NOT EXISTS {table} (
+            {items}
+        )""")
     db.commit()
 
     # Start flask servers and cloudflare tunnels
@@ -361,29 +383,30 @@ def add_user_to_data(user:discord.User) -> None: # Add a user to the sqlite db
     db.commit()
 def fuzz_autocomplete(choices): # The fuzz autocomplete
     async def _autocomplete(interaction: interactions.Interaction, current:str) -> list: # Define an autocomplete coroutine
-        if type(choices)==dict: newchoices = list(choices[str(interaction.guild.id)].keys()) # An exception for macros
+        if type(choices)==str: newchoices = [i[0] for i in dbcursor.execute(f"SELECT name FROM {choices} WHERE guildid = ?", [interaction.guild.id]).fetchall()] # If a string is passed, get all elements' names where guildid equals to the interaction guild id from a db table which has that name
         else: newchoices = list(choices) # Else, make sure that choices is a list
         return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, newchoices, limit=10) if s>60] if current else newchoices[:10])] # Find the closest ones based on fuzz
     return _autocomplete # Return the coroutine
 
 # COMMANDS
 @GROUPS["macros"].command(name="run", description="Sends a quick macro message to the chat")
-@app_commands.autocomplete(name=fuzz_autocomplete(MACROS))
+@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
 async def macro(interaction:interactions.Interaction, name:str): # Run a macro
-    localmacros = MACROS[str(interaction.guild.id)]
-    if name not in localmacros.keys():
+    name = name.lower()
+    content = dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
+
+    if not content:
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
         return
+    content = content[0]
 
-    text = localmacros[name]
-
-    if not text.startswith("@"): await interaction.response.send_message(content=text)
-    else: await interaction.response.send_message(content=localmacros[text.removeprefix("@")]) # If the macro begins with @, link it to another macro
+    if not content.startswith("@"): await interaction.response.send_message(content=content)
+    else: await interaction.response.send_message(content=dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, connect.removeprefix("@")]).fetchone()) # If the macro begins with @, link it to another macro
 @GROUPS["macros"].command(name="list", description="Lists all available macros")
 async def macrolist(interaction:interactions.Interaction): # List macros
-    localmacros = MACROS[str(interaction.guild.id)]
+    localmacros = dbcursor.execute(f"SELECT name FROM macros WHERE guildid = ?", [interaction.guild.id]).fetchall()
 
-    if localmacros: await interaction.response.send_message(content=" | ".join(localmacros.keys()), ephemeral=True)
+    if localmacros: await interaction.response.send_message(content=" | ".join([i[0] for i in localmacros]), ephemeral=True)
     else: await interaction.response.send_message(content="No macros found!", ephemeral=True)
 
 @tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.")
