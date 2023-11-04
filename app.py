@@ -448,7 +448,7 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
 
 @tree.command(name = "pings", description = "Set your string pings")
 @app_commands.describe(pings = "Words that will ping you, comma seperated, case insensitive")
-async def editpings(interaction:interactions.Interaction, pings:str): # Set pings
+async def editpings(interaction:interactions.Interaction, pings:str=""): # Set pings
     add_user_to_data(interaction.user)
 
     pings = [i.lower() for i in pings.replace(', ', ',').split(',')]
@@ -463,7 +463,7 @@ async def settz(interaction:interactions.Interaction, timezone:str): # Set timez
     add_user_to_data(interaction.user)
 
     if timezone not in all_timezones:
-        await interaction.response.send_message(f"Unknown timezone: `{timezone}`")
+        await interaction.response.send_message(f"Unknown timezone: `{timezone}`", ephemeral=True)
         return
     
     dbcursor.execute(f"UPDATE users SET tz = ? WHERE id = {interaction.user.id}", [timezone])
