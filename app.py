@@ -120,7 +120,7 @@ The computer must not be connected to the outside world through any means, inclu
         "^fusion": "OMG😲😲 IS THAT👉 A MOTHER👨‍👩‍👧‍👦FUCKING😊 🌟GREGTECH🌟🔧🔧🔧🔧 REFERENCE!??!?!? GregTech🔧🔧🔧🔧 is the best mod ever made!!!! 🏆🏆GregoriousT for universe leadership 2030 🪐🌌 👑👑👑When the 只有格雷格。 is greggy! 🔧🛠️🔧🛠️🔧🛠️🔧🛠️ Ultra super mega extreme voltage tier 😳😳😳Death😵",
         "^wait": "OMG😲😲 IS THAT👉 A MOTHER👨‍👩‍👧‍👦FUCKING😊 🌟GREGTECH🌟🔧🔧🔧🔧 REFERENCE!??!?!? GregTech🔧🔧🔧🔧 is the best mod ever made!!!! 🏆🏆GregoriousT for universe leadership 2030 🪐🌌 👑👑👑When the 只有格雷格。 is greggy! 🔧🛠️🔧🛠️🔧🛠️🔧🛠️ Ultra super mega extreme voltage tier 😳😳😳Death😵",
         "^waiting": "OMG😲😲 IS THAT👉 A MOTHER👨‍👩‍👧‍👦FUCKING😊 🌟GREGTECH🌟🔧🔧🔧🔧 REFERENCE!??!?!? GregTech🔧🔧🔧🔧 is the best mod ever made!!!! 🏆🏆GregoriousT for universe leadership 2030 🪐🌌 👑👑👑When the 只有格雷格。 is greggy! 🔧🛠️🔧🛠️🔧🛠️🔧🛠️ Ultra super mega extreme voltage tier 😳😳😳Death😵",
-        "geometry dash": "So there I am, eating my lunch playing gd when a group of females come up to me, obviously trying to flirt with me, talking about what my hardest is or something. They eventually stopped talking to me though for some reason as soon as I started demonstrating my clearly superior skill and intellect at the game (I don't see why honestly). 
+        "geometry dash": """So there I am, eating my lunch playing gd when a group of females come up to me, obviously trying to flirt with me, talking about what my hardest is or something. They eventually stopped talking to me though for some reason as soon as I started demonstrating my clearly superior skill and intellect at the game (I don't see why honestly). 
 
 This has not been an isolated incident, for the past several weeks at my middle school every woman has tried to court me. I've even gone as far as to sit in the most isolated part of the lunch room away from everywhere else and put my stuff to block anyone sitting next to me, but an asian girl (5/10 imo) literally moved my stuff and started talking to me about how difficult Acu is. Listen, I don't care about your "difficult" levels, Acu is FAR from a challenge. I don't struggle on levels. and after repeatedly demonstrating that I was not interested in "Playing Pickle Chamber by Acratic" she finally left me alone. I wish these girls would just stop worshiping me just because I've done a main list level (which was not even remotely hard for me btw).  
 
@@ -128,8 +128,8 @@ The worst ones are the ones that don't even play gd. We'll be having a nice, nor
 
 Now, you may think I'm just extremely handsome (which I am) and that's what causes this, however my decently attractive acquaintances who play OSU (way too smart and good for me to be considered friends imo) have no problems with this. 
 
-People need to stop fetishizing us GD players. If you just want cheap sex, literally the vanilla Minecraft normies are *right there*. Anyone else agree?",
-        "^gd": "So there I am, eating my lunch playing gd when a group of females come up to me, obviously trying to flirt with me, talking about what my hardest is or something. They eventually stopped talking to me though for some reason as soon as I started demonstrating my clearly superior skill and intellect at the game (I don't see why honestly). 
+People need to stop fetishizing us GD players. If you just want cheap sex, literally the vanilla Minecraft normies are *right there*. Anyone else agree?""",
+        "^gd": """So there I am, eating my lunch playing gd when a group of females come up to me, obviously trying to flirt with me, talking about what my hardest is or something. They eventually stopped talking to me though for some reason as soon as I started demonstrating my clearly superior skill and intellect at the game (I don't see why honestly). 
 
 This has not been an isolated incident, for the past several weeks at my middle school every woman has tried to court me. I've even gone as far as to sit in the most isolated part of the lunch room away from everywhere else and put my stuff to block anyone sitting next to me, but an asian girl (5/10 imo) literally moved my stuff and started talking to me about how difficult Acu is. Listen, I don't care about your "difficult" levels, Acu is FAR from a challenge. I don't struggle on levels. and after repeatedly demonstrating that I was not interested in "Playing Pickle Chamber by Acratic" she finally left me alone. I wish these girls would just stop worshiping me just because I've done a main list level (which was not even remotely hard for me btw).  
 
@@ -137,7 +137,7 @@ The worst ones are the ones that don't even play gd. We'll be having a nice, nor
 
 Now, you may think I'm just extremely handsome (which I am) and that's what causes this, however my decently attractive acquaintances who play OSU (way too smart and good for me to be considered friends imo) have no problems with this. 
 
-People need to stop fetishizing us GD players. If you just want cheap sex, literally the vanilla Minecraft normies are *right there*. Anyone else agree?",
+People need to stop fetishizing us GD players. If you just want cheap sex, literally the vanilla Minecraft normies are *right there*. Anyone else agree?""",
         "^quanpack": "$hop on quanpack"
     },
     "1099658057010651176": {},
