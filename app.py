@@ -451,7 +451,7 @@ async def chemsearch(interaction:interactions.Interaction, query:str, type:str="
 async def editpings(interaction:interactions.Interaction, pings:str=""): # Set pings
     add_user_to_data(interaction.user)
 
-    pings = [i.lower() for i in pings.replace(', ', ',').split(',')]
+    pings = [i.lower() for i in pings.replace(', ', ',').split(',')] if pings else []
     dbcursor.execute(f"UPDATE users SET pings = ? WHERE id = {interaction.user.id}", [dumps(pings)])
     db.commit()
 
