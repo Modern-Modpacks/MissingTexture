@@ -353,7 +353,7 @@ async def macro(interaction:interactions.Interaction, name:str): # Run a macro
     content = content[0]
 
     if not content.startswith("@"): await interaction.response.send_message(content=content)
-    else: await interaction.response.send_message(content=dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, content.removeprefix("@")]).fetchone()) # If the macro begins with @, link it to another macro
+    else: await interaction.response.send_message(content=dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, content.removeprefix("@")]).fetchone()[0]) # If the macro begins with @, link it to another macro
 @GROUPS["macros"].command(name="list", description="Lists all available macros")
 async def macrolist(interaction:interactions.Interaction): # List macros
     localmacros = dbcursor.execute(f"SELECT name FROM macros WHERE guildid = ?", [interaction.guild.id]).fetchall()
