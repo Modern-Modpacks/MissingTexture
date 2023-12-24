@@ -35,7 +35,11 @@ def run_server():
         img, links = create(request.args.get("type"), request.args.get("output"), False)
         img.save(imgbin, "PNG")
         imgbin.seek(0)
-        return send_file(imgbin, "image/png")
+
+        response = send_file(imgbin, "image/png")
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers['Cache-Control'] = 'public, max-age=0'
+        return response
 
     app.run(port=3333)
 
