@@ -31,6 +31,8 @@ def run_server():
 
     @app.get("/")
     def recipe():
+        if "Discordbot" in request.user_agent.string: return ""
+        
         imgbin = BytesIO()
         img, links = create(request.args.get("type"), request.args.get("output"), False)
         img.save(imgbin, "PNG")
