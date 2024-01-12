@@ -80,13 +80,12 @@ RESPONSES = {
             "Heehee, humorous rodent modification.",
             "All I know how to do is reply \"haha funny rat mod\" every time someone says \"rat\" in the discord messages. Is there more to life? Is there more to existence? I wouldn't know. It's not in my code.",
 		    """Hello darkness, my old friend...
-		I've come to talk with you again...
-		Because a vision softly cre-eeping,
-		Left its seeds while I was sle-eeping,
-		And the rat, that was planted, in my brain
-		Still remains...
-		Within the sound, of silence
-		"""
+I've come to talk with you again...
+Because a vision softly cre-eeping,
+Left its seeds while I was sle-eeping,
+And the rat, that was planted, in my brain
+Still remains...
+Within the sound, of silence"""
         ),
         "sex": "Where sex",
 
