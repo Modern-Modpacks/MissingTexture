@@ -222,8 +222,8 @@ SUBSCRIPT = {
 GUILDS = (
     discord.Object(1025316079226064966), # MM
     discord.Object(1099658057010651176), # GTB
-    discord.Object(1152341294434238544), # AmogBlock
-    discord.Object(1165682213589876737) # HehVerse
+    discord.Object(1165682213589876737), # HehVerse
+    discord.Object(1164943194367209563) # FTM2
 )
 # Command groups
 GROUPS = {
