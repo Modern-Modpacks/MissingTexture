@@ -257,12 +257,6 @@ async def on_ready():
         )""")
     db.commit()
 
-    # Start flask servers and cloudflare tunnels
-    Thread(target=lambda: server.run(port=9999)).start()
-    Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/translatorhook_config.yml"), "run", "github_webhook"))
-    Thread(target=run_server).start()
-    Popen(("cloudflared", "tunnel", "--config", path.expanduser("~/.cloudflared/trdne_config.yml"), "run", "thisrecipedoesnotexist"))
-
     # Start the status ticker animation
     update_status.start()
 
