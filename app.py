@@ -257,6 +257,9 @@ async def on_ready():
         )""")
     db.commit()
 
+	# Start flask servers
+    Thread(target=lambda: server.run(port=9999)).start()
+    Thread(target=run_server).start()
     # Start the status ticker animation
     update_status.start()
 
