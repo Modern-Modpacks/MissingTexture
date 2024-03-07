@@ -65,7 +65,7 @@ TABLES = {
         "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
     },
     "responses": {
-        "name": "text UNIQUE",
+        "name": "text",
         "content": "text",
         "guildid": "integer",
         "channels": "json",
