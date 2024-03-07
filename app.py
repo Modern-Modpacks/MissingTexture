@@ -59,15 +59,17 @@ TABLES = {
         "tz": "text"
     },
     "macros": {
-        "name": "text UNIQUE",
+        "name": "text",
         "content": "text",
-        "guildid": "integer"
+        "guildid": "integer",
+        "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
     },
     "responses": {
         "name": "text UNIQUE",
         "content": "text",
         "guildid": "integer",
-        "channels": "json"
+        "channels": "json",
+        "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
     }
 }
 # Automod responses
@@ -153,10 +155,6 @@ I actually managed to enjoy Sevtech, but by that I mean sitting in a cave throug
 
 The weird thing is, I love modded minecraft. I play Nomifactory on peaceful, I have various skyblock packs I rotate between frequently, and I have several multiplayer worlds with friends on numerous other packs where I am the designated "do all the complicated tech stuff while we gather resources" guy. I'm still actively trying to convince them to try Sevtech, becuase the concept seems so cool. But I'm not comfortable doing anything further than that, because I feel like if I do literally anything wrong I'll never be able to recover. I've fallen into a loop of downloading a new pack, getting interested in it, but then dropping it because i wont actually play the game for fear of messing it up beyond salvation. I know it's stupid, and I want to get past it, but at this point it's so deeply ingrained that I don't know what to do.
 And so, I turn to Reddit. What can I do? I realize im a bit of a mess, and most of this post is probably unhelpful, but it's kinda a messy problem to begin with. If you've got any sort of advice then go for it. A specific modpack to try, a different approach I should take, anything. Heck, I'd even take a "these are the people you should be bugging with this nonsense" at this point, it would at least tell me who to bug. Anything would help. Thanks for taking the time to read all this, at least (or not, I'm smart enough to tl;dr myself).""",
-        "^github": """I am new to GitHub and I have lots to say
-I DONT GIVE A FUCK ABOUT THE FUCKING CODE! i just want to download this stupid fucking application and use it <https://github.com/sherlock-project/sherlock#installation>
-
-WHY IS THERE CODE??? MAKE A FUCKING .EXE FILE AND GIVE IT TO ME. these dumbfucks think that everyone is a developer and understands code. well i am not and i don't understand it. I only know to download and install applications. SO WHY THE FUCK IS THERE CODE? make an EXE file and give it to me. STUPID FUCKING SMELLY NERDS""",
         "^pissmc": """**Item #**: SCP-P155
 **Object Class**: Euclid
 
@@ -226,8 +224,8 @@ SUBSCRIPT = {
 GUILDS = (
     discord.Object(1025316079226064966), # MM
     discord.Object(1099658057010651176), # GTB
-    discord.Object(1165682213589876737), # HehVerse
-    discord.Object(1164943194367209563) # FTM2
+    discord.Object(1152341294434238544), # AmogBlock
+    discord.Object(1165682213589876737) # HehVerse
 )
 # Command groups
 GROUPS = {
@@ -261,9 +259,6 @@ async def on_ready():
         )""")
     db.commit()
 
-	# Start flask servers
-    Thread(target=lambda: server.run(port=9999)).start()
-    Thread(target=run_server).start()
     # Start the status ticker animation
     update_status.start()
 
