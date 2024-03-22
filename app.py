@@ -611,8 +611,15 @@ async def kjspkg(interaction:interactions.Interaction, package:str): # kjspkgloo
     await interaction.response.send_message(embed=kjsbed) # Send the embed
 
 # FLASK ENDPOINTS
+
+# Status checker
+@server.get("/")
+async def on_root_get():
+	return "OK" # Return 👍
+
+# Github translator webhook
 @server.post("/translators")
-async def on_translator_webhook(): # Github translator webhook
+async def on_translator_webhook():
     data = loads(request.get_data()) # Change data
     commit = data["commits"][0] if data["commits"] else data["head_commit"] # Get the head commit
     changed_files = [i for i in commit["added"]+commit["modified"] if i.replace("-", "_").lower().endswith("en_us.json")] # All files named "en_us.json" or similar that were changed
