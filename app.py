@@ -68,7 +68,7 @@ TABLES = {
         "name": "text",
         "content": "text",
         "guildid": "integer",
-        "channels": "json",
+        "memeonly": "integer",
         "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
     }
 }
