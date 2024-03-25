@@ -97,12 +97,6 @@ SUBSCRIPT = {
     "0": "₀",
     "-": "₋"
 }
-# Servers
-GUILDS = (
-    discord.Object(1025316079226064966), # MM
-    discord.Object(1099658057010651176), # GTB
-    discord.Object(1165682213589876737) # HehVerse
-)
 # Command groups
 GROUPS = {
     "macros": app_commands.Group(name="macro", description="Commands that are related to macros"),
@@ -115,14 +109,13 @@ statusi = None # Status ticker position
 # EVENTS
 @client.event
 async def on_ready():
-    for guild in GUILDS: # For every server in GUILDS
+    async for guild in client.fetch_guilds(): # For every server in the bot is in
         if client.get_guild(guild.id)==None: continue # if the bot is not in the server, skip it
 
         for group in GROUPS.values(): tree.add_command(group, guild=guild) # Add the command groups
 
-        if len(argv)>1 and argv[1]=="--sync": # If --sync is passed
-            tree.copy_global_to(guild=guild) # Copy global commands locally
-            await tree.sync(guild=guild) # Sync
+        tree.copy_global_to(guild=guild) # Copy global commands locally
+        await tree.sync(guild=guild) # Sync
 
     # Init db
     for table, contents in TABLES.items():
@@ -530,7 +523,7 @@ async def on_translator_webhook():
         transbed.set_footer(text = "Changed mod: "+data["repository"]["name"].replace("-", " ").title())
 
         # Send the message
-        translators = run_coroutine_threadsafe(run_coroutine_threadsafe(client.fetch_guild(GUILDS[0].id), client.loop).result().fetch_channel(CHANNELS["mm"]["translators"]), client.loop).result()
+        translators = run_coroutine_threadsafe(run_coroutine_threadsafe(client.fetch_channel(CHANNELS["mm"]["translators"]), client.loop)).result()
         run_coroutine_threadsafe(translators.send(content="<@&1126286016781762680>", embed=transbed), client.loop)
 
     return "OK" # Return 👍
