@@ -53,6 +53,10 @@ server = Flask(__name__) # Flask server
 
 # DB tables
 TABLES = {
+    "channels": {
+        "id": "integer UNIQUE",
+        "tags": "json"
+    },
     "users": {
         "id": "integer UNIQUE",
         "pings": "json",
@@ -75,17 +79,10 @@ TABLES = {
 # Channel ids
 CHANNELS = {
     "mm": {
-        "memes": 1096717238553292882,
-        "botspam": 1025318731137695814,
         "translators": 1133844392495554560,
-        "member-general": 1027127053008515092,
-        "modlogs": 1118925292589830236,
+        "modlogs": 1118925292589830236
     }
 }
-# Channels where threads should be automatically created on message
-AUTO_THREAD_CHANNELS = [
-    CHANNELS["mm"]["memes"]
-]
 # Chem subscript
 SUBSCRIPT = {
     "1": "₁",
@@ -149,9 +146,9 @@ async def on_ready():
 async def on_message(message:discord.Message):
     if message.author.bot: return # Skip the message if the author is a bot
 
-    # Create thread if message in AUTO_THREAD_CHANNELS
+    # Create thread if the channel has the appropriate tag
     thread = None
-    if message.channel.id in AUTO_THREAD_CHANNELS: thread = await message.create_thread(name="Post by "+message.author.display_name)
+    if channel_has_tag(message.channel.id, "autothread"): thread = await message.create_thread(name="Post by "+message.author.display_name)
 
     # Pings logic
     users = dbcursor.execute("SELECT * FROM users WHERE id != ?", [message.author.id]).fetchall() # Get all users except the author from db
@@ -165,6 +162,7 @@ async def on_message(message:discord.Message):
                 break
 
     # Response logic
+    ismeme = channel_has_tag(message.channel.id, "meme")
     responses = dbcursor.execute("SELECT * FROM responses WHERE guildid = ?", [message.guild.id]).fetchall() # Get all responses available in the current server from db
     for name, content, _, memeonly in responses: # For every automod response
         match = search(r"\b"+name+r"\b", message.content, IGNORECASE) # Check if the name/triggerword of the response is in the message
@@ -174,7 +172,7 @@ async def on_message(message:discord.Message):
 
         if (
             not match or f":{name}:" in message.content.lower() # If the trigger word is found and it's not a name of an emoji
-            or (memeonly and message.channel.id not in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"]))
+            or (memeonly and not ismeme)
         ): continue
         
         if not content.startswith("$"): # If the $ prefix is not present
@@ -255,6 +253,12 @@ def fuzz_autocomplete(choices): # The fuzz autocomplete
         else: newchoices = list(choices) # Else, make sure that choices is a list
         return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, newchoices, limit=10) if s>60] if current else newchoices[:10])] # Find the closest ones based on fuzz
     return _autocomplete # Return the coroutine
+def channel_has_tag(id:int, tag:str) -> bool: # Check if the provided channel has the proived tag in the db
+    channeltags = dbcursor.execute("SELECT tags FROM channels WHERE id = ?", [id]).fetchone() # Get the tags channel from db
+    if channeltags==None: return False
+
+    channeltags = loads(channeltags[0])
+    return tag in channeltags
 
 # COMMANDS
 @GROUPS["macros"].command(name="run", description="Sends a quick macro message to the chat")
