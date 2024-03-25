@@ -205,7 +205,10 @@ async def on_message(message:discord.Message):
             else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")], mention_author=False)
 
         await sleep(.5) # Delay between individual responses
-
+@client.event
+async def on_thread_update(before:discord.Thread, after:discord.Thread): # Keep threads alive
+    if not channel_has_tag(after.id, "keepalive"): return # Check for "keepalive" tag
+    if not before.archived and after.archived: await (await after.send(".")).delete() # Quickly send a message and remove it to un-archive the thread
 
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
