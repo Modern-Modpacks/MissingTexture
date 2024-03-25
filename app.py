@@ -172,38 +172,41 @@ async def on_message(message:discord.Message):
         content = loads(content) # Load content json
         if type(content)==list: content = choice(content) # Randomly select a value if the response is a list
 
-        if match and f":{name}:" not in message.content.lower(): # If the trigger word is found and it's not a name of an emoji
-            if not memeonly or message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"]):
-                if not content.startswith("$"): # If the $ prefix is not present
-                    content = f"> {match[0]}\n\n{content}" # Add the quote to the message
-                    if len(content)>2000: # If the message is larger than discord's limit, split it into chunks at spaces
-                        chunks = []
-                        chunk = ""
-                        chunklength = 0
+        if (
+            not match or f":{name}:" in message.content.lower() # If the trigger word is found and it's not a name of an emoji
+            or (memeonly and message.channel.id not in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"]))
+        ): continue
+        
+        if not content.startswith("$"): # If the $ prefix is not present
+            content = f"> {match[0]}\n\n{content}" # Add the quote to the message
+            if len(content)>2000: # If the message is larger than discord's limit, split it into chunks at spaces
+                chunks = []
+                chunk = ""
+                chunklength = 0
 
-                        for i, word in enumerate(content.split(" ")):
-                            chunklength += len(word)
-                            if chunklength>=1500 or i==len(content.split(" "))-1:
-                                if i==len(content.split(" "))-1: chunk += " "+word
-                                chunks.append(chunk)
-                                chunk = word
-                                chunklength = len(word)
-                            else: chunk += " "+word
+                for i, word in enumerate(content.split(" ")):
+                    chunklength += len(word)
+                    if chunklength>=1500 or i==len(content.split(" "))-1:
+                        if i==len(content.split(" "))-1: chunk += " "+word
+                        chunks.append(chunk)
+                        chunk = word
+                        chunklength = len(word)
+                    else: chunk += " "+word
 
-                        # Send the first chunk with reply
-                        if thread!=None: await thread.send(chunks[0])
-                        else: await message.reply(chunks[0], mention_author=False)
-                        for c in chunks[1:]: # Send all other chunks as regular messages
-                            await (thread if thread!=None else message.channel).send(c)
-                            await sleep(.25) # Delay between chunks
-                    else: # If the message is less than 2000 chars
-                        if thread!=None: await thread.send(content) # Send the response in thread if present
-                        else: await message.reply(content, mention_author=False) # Send the response in the same channel if not
-                else: # If the $ prefix is present, send the sticker with the response value
-                    if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")])
-                    else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")], mention_author=False)
+                # Send the first chunk with reply
+                if thread!=None: await thread.send(chunks[0])
+                else: await message.reply(chunks[0], mention_author=False)
+                for c in chunks[1:]: # Send all other chunks as regular messages
+                    await (thread if thread!=None else message.channel).send(c)
+                    await sleep(.25) # Delay between chunks
+            else: # If the message is less than 2000 chars
+                if thread!=None: await thread.send(content) # Send the response in thread if present
+                else: await message.reply(content, mention_author=False) # Send the response in the same channel if not
+        else: # If the $ prefix is present, send the sticker with the response value
+            if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")])
+            else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")], mention_author=False)
 
-                await sleep(.5) # Delay between individual responses
+        await sleep(.5) # Delay between individual responses
 
 
 @tree.error
