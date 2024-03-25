@@ -141,6 +141,11 @@ async def on_ready():
     # Start the status ticker animation
     update_status.start()
 
+    # Check and un-archive keepalive threads
+    channels = db.execute("SELECT * FROM channels").fetchall() # Get all known channels
+    for id, tags in channels: # For each channel
+        if "keepalive" in loads(tags): unarchive_thread(id) # If the thread is tagged "keepalive", un-archive it
+
     print(f"Logged in as: {client.user}") # Notify when done
 @client.event
 async def on_message(message:discord.Message):
@@ -208,7 +213,7 @@ async def on_message(message:discord.Message):
 @client.event
 async def on_thread_update(before:discord.Thread, after:discord.Thread): # Keep threads alive
     if not channel_has_tag(after.id, "keepalive"): return # Check for "keepalive" tag
-    if not before.archived and after.archived: await (await after.send(".")).delete() # Quickly send a message and remove it to un-archive the thread
+    if not before.archived and after.archived: unarchive_thread(after) # Un-archive the keepalive thread
 
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
@@ -262,6 +267,8 @@ def channel_has_tag(id:int, tag:str) -> bool: # Check if the provided channel ha
 
     channeltags = loads(channeltags[0])
     return tag in channeltags
+async def unarchive_thread(thread:discord.Thread): # Unarchive thread by sending a ping message and quickly deleting it
+    await (await thread.send(".")).delete()
 
 # COMMANDS
 @GROUPS["macros"].command(name="run", description="Sends a quick macro message to the chat")
