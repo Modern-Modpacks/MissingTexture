@@ -11,9 +11,7 @@ from discord.ext import tasks
 
 # System stuff
 from asyncio import sleep, run_coroutine_threadsafe
-from sys import argv
-from os import _exit, path, getenv
-from subprocess import Popen, DEVNULL
+from os import getenv
 from io import BytesIO
 from threading import Thread
 from traceback import format_exc
@@ -21,8 +19,7 @@ from traceback import format_exc
 # Other built-in modules
 from re import search, IGNORECASE
 from random import choice
-from json import loads, load, dump, dumps
-from hashlib import md5
+from json import loads, dumps
 from sqlite3 import connect
 
 # Dates and times
