@@ -289,25 +289,27 @@ async def on_message(message:discord.Message):
                 break
 
     # Response logic
-    for name, value in RESPONSES[str(message.guild.id)].items(): # For every automod response
-        keyword = name.removeprefix("^").removeprefix("%") # Key the trigger word without prefixes
-        match = search(r"\b"+keyword+r"\b", message.content, IGNORECASE) # Check if it's in the message
-        if type(value)==tuple: value = choice(value) # Randomly select a value if the response is a tuple
+    responses = dbcursor.execute("SELECT * FROM responses").fetchall() # Get all responses from db
+    for name, content, guildid, memeonly in responses: # For every automod response
+        if message.guild.id!=guildid: continue
+        match = search(r"\b"+name+r"\b", message.content, IGNORECASE) # Check if the name/triggerword of the response is in the message
 
-        if match and f":{keyword}:" not in message.content.lower(): # If the trigger word is found and it's not a name of an emoji
-            # If the ^ prefix is present, check for if the channel is memes or botspam. If the % prefix is present, check for the same channels + member-general
-            if (not name.startswith("^") or message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"])) or (name.startswith("%") and message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["member-general"], CHANNELS["mm"]["botspam"])):
-                if not value.startswith("$"): # If the $ prefix is not present
-                    value = f"> {match[0]}\n\n{value}" # Add the quote to the message
-                    if len(value)>2000: # If the message is larger than discord's limit, split it into chunks at spaces
+        content = loads(content) # Load content json
+        if type(content)==list: content = choice(content) # Randomly select a value if the response is a list
+
+        if match and f":{name}:" not in message.content.lower(): # If the trigger word is found and it's not a name of an emoji
+            if not memeonly or message.channel.id in (CHANNELS["mm"]["memes"], CHANNELS["mm"]["botspam"]):
+                if not content.startswith("$"): # If the $ prefix is not present
+                    content = f"> {match[0]}\n\n{content}" # Add the quote to the message
+                    if len(content)>2000: # If the message is larger than discord's limit, split it into chunks at spaces
                         chunks = []
                         chunk = ""
                         chunklength = 0
 
-                        for i, word in enumerate(value.split(" ")):
+                        for i, word in enumerate(content.split(" ")):
                             chunklength += len(word)
-                            if chunklength>=1500 or i==len(value.split(" "))-1:
-                                if i==len(value.split(" "))-1: chunk += " "+word
+                            if chunklength>=1500 or i==len(content.split(" "))-1:
+                                if i==len(content.split(" "))-1: chunk += " "+word
                                 chunks.append(chunk)
                                 chunk = word
                                 chunklength = len(word)
@@ -320,11 +322,11 @@ async def on_message(message:discord.Message):
                             await (thread if thread!=None else message.channel).send(c)
                             await sleep(.25) # Delay between chunks
                     else: # If the message is less than 2000 chars
-                        if thread!=None: await thread.send(value) # Send the response in thread if present
-                        else: await message.reply(value, mention_author=False) # Send the response in the same channel if not
+                        if thread!=None: await thread.send(content) # Send the response in thread if present
+                        else: await message.reply(content, mention_author=False) # Send the response in the same channel if not
                 else: # If the $ prefix is present, send the sticker with the response value
-                    if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")])
-                    else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == value.removeprefix("$")], mention_author=False)
+                    if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")])
+                    else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")], mention_author=False)
 
                 await sleep(.5) # Delay between individual responses
 
