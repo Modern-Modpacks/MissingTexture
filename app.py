@@ -144,7 +144,7 @@ async def on_ready():
     # Check and un-archive keepalive threads
     channels = db.execute("SELECT * FROM channels").fetchall() # Get all known channels
     for id, tags in channels: # For each channel
-        if "keepalive" in loads(tags): unarchive_thread(id) # If the thread is tagged "keepalive", un-archive it
+        if "keepalive" in loads(tags): await unarchive_thread(id) # If the thread is tagged "keepalive", un-archive it
 
     print(f"Logged in as: {client.user}") # Notify when done
 @client.event
@@ -213,7 +213,7 @@ async def on_message(message:discord.Message):
 @client.event
 async def on_thread_update(before:discord.Thread, after:discord.Thread): # Keep threads alive
     if not channel_has_tag(after.id, "keepalive"): return # Check for "keepalive" tag
-    if not before.archived and after.archived: unarchive_thread(after) # Un-archive the keepalive thread
+    if not before.archived and after.archived: await unarchive_thread(after) # Un-archive the keepalive thread
 
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
