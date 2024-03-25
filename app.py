@@ -66,7 +66,7 @@ TABLES = {
     },
     "responses": {
         "name": "text",
-        "content": "text",
+        "content": "json",
         "guildid": "integer",
         "memeonly": "integer",
         "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
