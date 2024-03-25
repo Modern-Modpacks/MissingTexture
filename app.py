@@ -165,9 +165,8 @@ async def on_message(message:discord.Message):
                 break
 
     # Response logic
-    responses = dbcursor.execute("SELECT * FROM responses").fetchall() # Get all responses from db
-    for name, content, guildid, memeonly in responses: # For every automod response
-        if message.guild.id!=guildid: continue
+    responses = dbcursor.execute("SELECT * FROM responses WHERE guildid = ?", [message.guild.id]).fetchall() # Get all responses available in the current server from db
+    for name, content, _, memeonly in responses: # For every automod response
         match = search(r"\b"+name+r"\b", message.content, IGNORECASE) # Check if the name/triggerword of the response is in the message
 
         content = loads(content) # Load content json
