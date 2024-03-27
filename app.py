@@ -134,7 +134,8 @@ async def on_ready():
     # Check and un-archive keepalive threads
     channels = db.execute("SELECT * FROM channels").fetchall() # Get all known channels
     for id, tags in channels: # For each channel
-        if "keepalive" in loads(tags): await unarchive_thread(await client.fetch_channel(id)) # If the thread is tagged "keepalive", un-archive it
+        channel = await client.fetch_channel(id) # Fetch the channel
+        if type(channel)==discord.Thread and channel.archived and "keepalive" in loads(tags): await unarchive_thread(channel) # If the thread is tagged "keepalive" and is archived, un-archive it
 
     print(f"Logged in as: {client.user}") # Notify when done
 @client.event
