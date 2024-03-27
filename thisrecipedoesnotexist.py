@@ -130,11 +130,13 @@ def create(type:str, outputitem:str, generatepastes:bool) -> (Image.Image, tuple
     maxoffset = 100
     bg = bg.crop((pastepoint[0]-randrange(minoffset, maxoffset), pastepoint[1]-randrange(minoffset, maxoffset), pastepoint[0]+grid.width+randrange(minoffset, maxoffset), pastepoint[1]+grid.height))
 
-    draw = ImageDraw.Draw(bg)
+    watermark = Image.new("RGBA", (bg.width, bg.height), "#00000000")
+    draw = ImageDraw.Draw(watermark)
     draw.rectangle(((bg.width-30, 0), (bg.width-15, 15)), "#f80cf966")
     draw.rectangle(((bg.width-15, 15), (bg.width, 30)), "#f80cf966")
     draw.rectangle(((bg.width-15, 0), (bg.width, 15)), "#00000066")
     draw.rectangle(((bg.width-30, 15), (bg.width-15, 30)), "#00000066")
+    bg = Image.alpha_composite(bg, watermark)
 
     kjslink = None
     if generatepastes: kjslink = send("https://privatebin.net/", text=_generate_kjs_script([_get_item(i) for i in randitems], type))["full_url"]
