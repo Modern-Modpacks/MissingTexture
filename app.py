@@ -1,16 +1,16 @@
 # IMPORTS
 
 # Disable the fuzz warning
-from warnings import filterwarnings 
+from warnings import filterwarnings
 filterwarnings("ignore")
 
 # Discord.py and related
 import discord
-from discord import app_commands, interactions
+from discord import app_commands, interactions, ui
 from discord.ext import tasks
 
 # System stuff
-from asyncio import sleep, run_coroutine_threadsafe
+from asyncio import sleep, coroutine, run_coroutine_threadsafe
 from os import getenv
 from io import BytesIO
 from threading import Thread
@@ -21,9 +21,11 @@ from re import search, IGNORECASE
 from random import choice
 from json import loads, dumps
 from sqlite3 import connect
+from math import floor
 
 # Dates and times
 from datetime import datetime
+from time import time
 from pytz import all_timezones
 from pytz import timezone as tz
 
@@ -62,7 +64,11 @@ TABLES = {
     "macros": {
         "name": "text",
         "content": "text",
+        "authorid": "integer",
+        "timecreated": "integer",
+        "timelastedited": "integer",
         "guildid": "integer",
+        "uses": "integer",
         "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
     },
     "responses": {
@@ -76,8 +82,7 @@ TABLES = {
 # Channel ids
 CHANNELS = {
     "mm": {
-        "translators": 1133844392495554560,
-        "modlogs": 1118925292589830236
+        "translators": 1133844392495554560
     }
 }
 # Chem subscript
@@ -102,6 +107,7 @@ GROUPS = {
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
 
 statusi = None # Status ticker position
+logchannels : list[discord.TextChannel] = [] # Channels where the logs should be sent to
 
 # EVENTS
 @client.event
@@ -131,11 +137,12 @@ async def on_ready():
     # Start the status ticker animation
     update_status.start()
 
-    # Check and un-archive keepalive threads
-    channels = db.execute("SELECT * FROM channels").fetchall() # Get all known channels
+    # Check and un-archive keepalive threads + get log channels
+    channels = dbcursor.execute("SELECT * FROM channels").fetchall() # Get all known channels
     for id, tags in channels: # For each channel
         channel = await client.fetch_channel(id) # Fetch the channel
         if type(channel)==discord.Thread and channel.archived and "keepalive" in loads(tags): await unarchive_thread(channel) # If the thread is tagged "keepalive" and is archived, un-archive it
+        if "log" in loads(tags): logchannels.append(channel) # If the channel is tagged "log", add it to log channel list
 
     print(f"Logged in as: {client.user}") # Notify when done
 @client.event
@@ -209,13 +216,16 @@ async def on_thread_update(before:discord.Thread, after:discord.Thread): # Keep 
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
     errorbed = discord.Embed(color=discord.Color.red(), title="I AM SHITTING MYSELF!1!1", description=f"""Details:
-```{format_exc()}```
+```
+{format_exc()}
+```
 Channel: <#{interaction.channel.id}>
 User: <@{interaction.user.id}>
 Time: <t:{round(interaction.created_at.timestamp())}:f>""")
-    originalcommand = f"{interaction.command.name} "+" ".join([i["name"]+":"+(i["value"] if "value" in i.keys() else None) for i in interaction.data["options"]])
-    errorbed.set_footer(text=f"The command that caused the error: \"/{originalcommand}\"")
-    await (await client.fetch_channel(CHANNELS["mm"]["modlogs"])).send(embed=errorbed)
+    if interaction.command!=None:
+        originalcommand = f"{interaction.command.name} "+" ".join([i["name"]+(':'+i["value"] if "value" in i.keys() else '') for i in interaction.data["options"]])
+        errorbed.set_footer(text=f"The command that caused the error: \"/{originalcommand}\"")
+    await send_log_message(errorbed)
 
     errmsg = "Whoops, something has gone wrong! This incident was already reported to mods, they will get on fixing it shortly!"
     if interaction.response.is_done(): await interaction.followup.send(content=errmsg, ephemeral=True)
@@ -252,18 +262,72 @@ def fuzz_autocomplete(choices): # The fuzz autocomplete
         else: newchoices = list(choices) # Else, make sure that choices is a list
         return [app_commands.Choice(name=i, value=i) for i in ([v for v, s in process.extract(current, newchoices, limit=10) if s>60] if current else newchoices[:10])] # Find the closest ones based on fuzz
     return _autocomplete # Return the coroutine
+def execute_and_commit(instruction:str, params:list=[]): # Execute a sql command and commit
+    db.execute(instruction, params)
+    db.commit()
 def channel_has_tag(id:int, tag:str) -> bool: # Check if the provided channel has the proived tag in the db
     channeltags = dbcursor.execute("SELECT tags FROM channels WHERE id = ?", [id]).fetchone() # Get the tags channel from db
     if channeltags==None: return False
 
     channeltags = loads(channeltags[0])
     return tag in channeltags
+def get_user_pfp(user:discord.User) -> str: # Get user pfp or return the default one
+    if user.avatar!=None: return user.avatar.url
+    return user.default_avatar.url
+async def send_log_message(embed:discord.Embed): # Send an embed to log channels
+    for c in logchannels: await c.send(embed=embed)
+async def send_macro_log_message(name:str, content:str, previouscontent:str, user:discord.User, guild:discord.Guild, action:str, color:discord.Colour): # Send a log message that's related to macros
+    sep = "\n"
+    macrobed = discord.Embed(color=color, title=f"A macro has been {action.lower()}!", description=f"""Details:
+
+Server: **{guild.name}**
+Name: `{name}`{sep+f'''Old content: ```
+{previouscontent}
+```''' if previouscontent else ''}
+{'New c' if previouscontent else 'C'}ontent: ```
+{content}
+```""")
+    macrobed.set_thumbnail(url=guild.icon.url)
+    macrobed.set_footer(text=f"{action.title()} by @{user.name}", icon_url=get_user_pfp(user))
+    await send_log_message(macrobed)
 async def unarchive_thread(thread:discord.Thread): # Unarchive thread by sending a ping message and quickly deleting it
     await (await thread.send(".")).delete()
+
+# HELPER CLASSES
+class ConfirmaionView(ui.View): # Yes/No view prompt
+    def __init__(self, callback: coroutine):
+        super().__init__()
+        self.callback = callback
+    
+    @ui.button(label="Yes", style=discord.ButtonStyle.green, emoji="✅")
+    async def confirm(self, interaction: discord.Interaction, _button: ui.Button): # If yes is clicked, call the callback
+        await interaction.response.defer()
+        await interaction.delete_original_response()
+        await self.callback()
+    @ui.button(label="No", style=discord.ButtonStyle.red, emoji="<:red_cross_mark:1222622729845346414>")
+    async def cancel(self, interaction: discord.Interaction, _button: ui.Button): await interaction.response.edit_message(content="Action aborted!", view=None, embed=None) # If no is clicked, abort the action
+class AddOrEditMacroModal(ui.Modal): # /macro add modal
+    content = ui.TextInput(label="Content", style=discord.TextStyle.paragraph) # The content of the macro
+
+    def __init__(self, name:str, precontent:str=""):
+        self.name = name # The name of the macro
+        self.precontent = precontent # The previous content of the macro
+
+        self.content.default = precontent # Set the content if already exists
+        super().__init__(title=f"{'Editing' if precontent else 'Adding'} \"{name}\" macro") # Set the title (adding if doesn't exist, editing if does)
+
+    async def on_submit(self, interaction: discord.Interaction): # When the modal is sumbitted
+        if self.precontent: execute_and_commit("UPDATE macros SET content = ?, timelastedited = ? WHERE name = ? AND guildid = ?", [self.content.value, floor(time()), self.name, interaction.guild.id]) # Edit the macro if it exists
+        else: execute_and_commit("INSERT INTO macros (name, content, authorid, timecreated, timelastedited, guildid, uses) VALUES (?, ?, ?, ?, ?, ?, ?)", [self.name, self.content.value, interaction.user.id, floor(time()), floor(time()), interaction.guild.id, 0]) # Insert macro into the db if doesn't exist
+
+        verb = "edited" if self.precontent else "added" # Get the correct action (added if doesn't exist, edited if does)
+        await send_macro_log_message(self.name, self.content.value, self.precontent, interaction.user, interaction.guild, verb, (discord.Color.yellow() if self.precontent else discord.Color.purple())) # Notify the mods
+        await interaction.response.send_message(f"Macro \"{self.name}\" has successfully been {verb}!", ephemeral=True) # Yipee
 
 # COMMANDS
 @GROUPS["macros"].command(name="run", description="Sends a quick macro message to the chat")
 @app_commands.autocomplete(name=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to run")
 async def macro(interaction:interactions.Interaction, name:str): # Run a macro
     name = name.lower()
     content = dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
@@ -275,12 +339,83 @@ async def macro(interaction:interactions.Interaction, name:str): # Run a macro
 
     if not content.startswith("@"): await interaction.response.send_message(content=content)
     else: await interaction.response.send_message(content=dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, content.removeprefix("@")]).fetchone()[0]) # If the macro begins with @, link it to another macro
+
+    execute_and_commit("UPDATE macros SET uses = uses + 1 WHERE guildid = ? AND name = ?", [interaction.guild.id, name])
 @GROUPS["macros"].command(name="list", description="Lists all available macros")
 async def macrolist(interaction:interactions.Interaction): # List macros
     localmacros = dbcursor.execute(f"SELECT name FROM macros WHERE guildid = ?", [interaction.guild.id]).fetchall()
 
     if localmacros: await interaction.response.send_message(content=" | ".join([i[0] for i in localmacros]), ephemeral=True)
     else: await interaction.response.send_message(content="No macros found!", ephemeral=True)
+@GROUPS["macros"].command(name="add", description="Add a macro")
+@app_commands.describe(name="The name of the macro you want to add")
+async def macroadd(interaction:interactions.Interaction, name:str): # Add a macro
+    if not interaction.user.guild_permissions.manage_messages: # Check for perms
+        await interaction.response.send_message("You don't have enough permissions to add macros to this server. Tough luck!", ephemeral=True)
+        return
+    
+    if dbcursor.execute("SELECT * FROM macros WHERE name = ? AND guildid = ?", [name, interaction.guild.id]).fetchone()!=None: # Check if the macro of the same name exists on the server
+        await interaction.response.send_message(f"Macro `{name}` already exists on this server. Try a different name", ephemeral=True) # Refuse to add
+        return
+    
+    await interaction.response.send_modal(AddOrEditMacroModal(name)) # Open the modal
+@GROUPS["macros"].command(name="edit", description="Edit a macro")
+@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to edit")
+async def macroedit(interaction:interactions.Interaction, name:str): # Edit a macro
+    name = name.lower()
+    selectedmacro = dbcursor.execute("SELECT content, authorid FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
+
+    if not selectedmacro:
+        await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
+        return
+
+    if not interaction.user.guild_permissions.administrator or interaction.user.id!=selectedmacro[1]: # Check perms
+        await interaction.response.send_message(f"You don't have enough permissions to edit the `{name}` macro. Sorry!", ephemeral=True)
+        return
+    
+    await interaction.response.send_modal(AddOrEditMacroModal(name, selectedmacro[0])) # Open the modal
+@GROUPS["macros"].command(name="remove", description="Remove a macro")
+@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to remove")
+async def macroremove(interaction:interactions.Interaction, name:str): # Remove a macro
+    name = name.lower()
+    selectedmacro = dbcursor.execute("SELECT content, authorid FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
+
+    if not selectedmacro:
+        await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
+        return
+
+    if not interaction.user.guild_permissions.administrator or interaction.user.id!=selectedmacro[1]: # Check perms
+        await interaction.response.send_message(f"You don't have enough permissions to remove the `{name}` macro. Sorry!", ephemeral=True)
+        return
+    
+    async def deletemacro():
+        execute_and_commit("DELETE FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]) # Remove the macro from db
+        await send_macro_log_message(name, selectedmacro[0], "", interaction.user, interaction.guild, "removed", discord.Color.red()) # Notify the mods
+        await interaction.followup.send(content=f"Macro `{name}` successfully removed!", ephemeral=True) # Kill
+
+    await interaction.response.send_message(
+        embed=discord.Embed(title=f"Are you sure you want to remove the `{name}` macro?", color=discord.Color.red()),
+        view=ConfirmaionView(deletemacro),
+        ephemeral=True
+    ) # Confirmation
+@GROUPS["macros"].command(name="info", description="Get info about a macro")
+@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to get info about")
+async def macroinfo(interaction:interactions.Interaction, name:str): # Get info about a macro
+    name = name.lower()
+    selectedmacro = dbcursor.execute("SELECT authorid, timecreated, timelastedited, uses FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
+
+    if not selectedmacro:
+        await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
+        return
+
+    macrobed = discord.Embed(title=f"`{name}` macro", description=f"""Author: <@{selectedmacro[0]}>
+Uses: {selectedmacro[3]}
+Created on: <t:{selectedmacro[1]}:f>
+Last modified on: <t:{selectedmacro[2]}:f>""", color=discord.Color.blurple())
+    await interaction.response.send_message(embed=macrobed)
 
 @tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.")
 @app_commands.describe(query="Compound/Substance name or PubChem CID/SID", type="Search for Compounds/Substances. Optional, \"Compound\" by default", bettersearch="Enables better search feature, which might take longer. Optional, false by default")
@@ -409,8 +544,7 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None): #
 
         # Create a new tz info embed
         tzbed = discord.Embed(color=user.color, title=f"{user.display_name}'s timezone")
-        if user.avatar!=None: tzbed.set_thumbnail(url=user.avatar.url)
-        else: tzbed.set_thumbnail(url=user.default_avatar.url)
+        tzbed.set_thumbnail(url=get_user_pfp(user))
         tzbed.description = f"""**Current time**: `{now.strftime("%d/%m/%Y, %H:%M:%S")}`
 
 **Name**: `{timezone}`
@@ -445,8 +579,8 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
         img.save(imgbin, "PNG")
         imgbin.seek(0)
 
-        buttons = discord.ui.View()
-        if links!=None: buttons.add_item(discord.ui.Button(label="KubeJS", url=links[0])) # If exportrecipe is passed, create and send the link to the kjs exported recipe
+        buttons = ui.View()
+        if links!=None: buttons.add_item(ui.Button(label="KubeJS", url=links[0])) # If exportrecipe is passed, create and send the link to the kjs exported recipe
         await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
 
 @tree.command(name = "kjspkglookup", description = "Gets info about a KJSPKG package")
