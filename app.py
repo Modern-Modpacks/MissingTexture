@@ -379,7 +379,7 @@ async def macroedit(interaction:interactions.Interaction, name:str): # Edit a ma
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
         return
 
-    if not interaction.user.guild_permissions.administrator or interaction.user.id!=selectedmacro[1]: # Check perms
+    if not interaction.user.guild_permissions.administrator and interaction.user.id!=selectedmacro[1]: # Check perms
         await interaction.response.send_message(f"You don't have enough permissions to edit the `{name}` macro. Sorry!", ephemeral=True)
         return
     
@@ -395,7 +395,7 @@ async def macroremove(interaction:interactions.Interaction, name:str): # Remove 
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
         return
 
-    if not interaction.user.guild_permissions.administrator or interaction.user.id!=selectedmacro[1]: # Check perms
+    if not interaction.user.guild_permissions.administrator and interaction.user.id!=selectedmacro[1]: # Check perms
         await interaction.response.send_message(f"You don't have enough permissions to remove the `{name}` macro. Sorry!", ephemeral=True)
         return
     
