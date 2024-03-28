@@ -145,6 +145,7 @@ async def on_ready():
         if "log" in loads(tags): logchannels.append(channel) # If the channel is tagged "log", add it to log channel list
 
     print(f"Logged in as: {client.user}") # Notify when done
+    await send_log_message(discord.Embed(title="I'm online again!", description="Hello world!", timestamp=datetime.today(), color=discord.Color.green()).set_thumbnail(url=get_user_pfp(client.user))) # Notify through discord
 @client.event
 async def on_message(message:discord.Message):
     if message.author.bot: return # Skip the message if the author is a bot
