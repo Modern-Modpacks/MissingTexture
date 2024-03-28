@@ -274,6 +274,8 @@ def channel_has_tag(id:int, tag:str) -> bool: # Check if the provided channel ha
 def get_user_pfp(user:discord.User) -> str: # Get user pfp or return the default one
     if user.avatar!=None: return user.avatar.url
     return user.default_avatar.url
+def insert_macro(name:str, content:str, interaction:discord.Interaction): # Insert a macro into the db
+    execute_and_commit("INSERT INTO macros (name, content, authorid, timecreated, timelastedited, guildid, uses) VALUES (?, ?, ?, ?, ?, ?, ?)", [name, content, interaction.user.id, floor(time()), floor(time()), interaction.guild.id, 0])
 async def send_log_message(embed:discord.Embed): # Send an embed to log channels
     for c in logchannels: await c.send(embed=embed)
 async def send_macro_log_message(name:str, content:str, previouscontent:str, user:discord.User, guild:discord.Guild, action:str, color:discord.Colour): # Send a log message that's related to macros
@@ -318,7 +320,7 @@ class AddOrEditMacroModal(ui.Modal): # /macro add modal
 
     async def on_submit(self, interaction: discord.Interaction): # When the modal is sumbitted
         if self.precontent: execute_and_commit("UPDATE macros SET content = ?, timelastedited = ? WHERE name = ? AND guildid = ?", [self.content.value, floor(time()), self.name, interaction.guild.id]) # Edit the macro if it exists
-        else: execute_and_commit("INSERT INTO macros (name, content, authorid, timecreated, timelastedited, guildid, uses) VALUES (?, ?, ?, ?, ?, ?, ?)", [self.name, self.content.value, interaction.user.id, floor(time()), floor(time()), interaction.guild.id, 0]) # Insert macro into the db if doesn't exist
+        else: insert_macro(self.name, self.content.value, interaction) # Insert macro into the db if doesn't exist
 
         verb = "edited" if self.precontent else "added" # Get the correct action (added if doesn't exist, edited if does)
         await send_macro_log_message(self.name, self.content.value, self.precontent, interaction.user, interaction.guild, verb, (discord.Color.yellow() if self.precontent else discord.Color.purple())) # Notify the mods
@@ -348,8 +350,9 @@ async def macrolist(interaction:interactions.Interaction): # List macros
     if localmacros: await interaction.response.send_message(content=" | ".join([i[0] for i in localmacros]), ephemeral=True)
     else: await interaction.response.send_message(content="No macros found!", ephemeral=True)
 @GROUPS["macros"].command(name="add", description="Add a macro")
-@app_commands.describe(name="The name of the macro you want to add")
-async def macroadd(interaction:interactions.Interaction, name:str): # Add a macro
+@app_commands.autocomplete(alias=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to add", alias="Enter the name of another macro if you want to create an alias macro (will just respond with the same message)")
+async def macroadd(interaction:interactions.Interaction, name:str, alias:str=""): # Add a macro
     if not interaction.user.guild_permissions.manage_messages: # Check for perms
         await interaction.response.send_message("You don't have enough permissions to add macros to this server. Tough luck!", ephemeral=True)
         return
@@ -358,7 +361,12 @@ async def macroadd(interaction:interactions.Interaction, name:str): # Add a macr
         await interaction.response.send_message(f"Macro `{name}` already exists on this server. Try a different name", ephemeral=True) # Refuse to add
         return
     
-    await interaction.response.send_modal(AddOrEditMacroModal(name)) # Open the modal
+    if alias: 
+        content = "@"+alias
+        insert_macro(name, content, interaction) # Insert alias macro into the db
+        await send_macro_log_message(name, content, "", interaction.user, interaction.guild, "created", discord.Color.purple())
+        await interaction.response.send_message(f"Alias macro `{name}` successfully created and linked to `{alias}`!", ephemeral=True) # Yay
+    else: await interaction.response.send_modal(AddOrEditMacroModal(name)) # Open the modal if the macro being added is not an alias
 @GROUPS["macros"].command(name="edit", description="Edit a macro")
 @app_commands.autocomplete(name=fuzz_autocomplete("macros"))
 @app_commands.describe(name="The name of the macro you want to edit")
@@ -405,16 +413,17 @@ async def macroremove(interaction:interactions.Interaction, name:str): # Remove 
 @app_commands.describe(name="The name of the macro you want to get info about")
 async def macroinfo(interaction:interactions.Interaction, name:str): # Get info about a macro
     name = name.lower()
-    selectedmacro = dbcursor.execute("SELECT authorid, timecreated, timelastedited, uses FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
+    selectedmacro = dbcursor.execute("SELECT * FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
 
     if not selectedmacro:
         await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
         return
 
-    macrobed = discord.Embed(title=f"`{name}` macro", description=f"""Author: <@{selectedmacro[0]}>
-Uses: {selectedmacro[3]}
-Created on: <t:{selectedmacro[1]}:f>
-Last modified on: <t:{selectedmacro[2]}:f>""", color=discord.Color.blurple())
+    macrobed = discord.Embed(title=f"`{name}` macro", description=f"""Author: <@{selectedmacro[2]}>
+Uses: {selectedmacro[6]}
+Created on: <t:{selectedmacro[3]}:f>
+Last modified on: <t:{selectedmacro[4]}:f>""", color=discord.Color.blurple())
+    if selectedmacro[1].startswith("@"): macrobed.set_footer(text=f"Alias macro for \"{selectedmacro[1].removeprefix('@')}\"")
     await interaction.response.send_message(embed=macrobed)
 
 @tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.")
