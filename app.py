@@ -340,10 +340,16 @@ async def macro(interaction:interactions.Interaction, name:str): # Run a macro
         return
     content = content[0]
 
-    if not content.startswith("@"): await interaction.response.send_message(content=content)
-    else: await interaction.response.send_message(content=dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, content.removeprefix("@")]).fetchone()[0]) # If the macro begins with @, link it to another macro
+    # Find the alias if the macro content begins with @
+    alias = None
+    if content.startswith("@"):
+        aliasname = content.removeprefix("@")
+        alias = dbcursor.execute("SELECT content FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, aliasname]).fetchone()
 
-    execute_and_commit("UPDATE macros SET uses = uses + 1 WHERE guildid = ? AND name = ?", [interaction.guild.id, name])
+    if alias!=None: await interaction.response.send_message(content=alias[0]) # Send the contents of the linked macro if found
+    else: await interaction.response.send_message(content=content) # Otherwise, send the content of the macro itself
+
+    execute_and_commit("UPDATE macros SET uses = uses + 1 WHERE guildid = ? AND name = ?", [interaction.guild.id, (aliasname if alias!=None else name)]) # Add +1 use to either the macro itself or the linked one
 @GROUPS["macros"].command(name="list", description="Lists all available macros")
 async def macrolist(interaction:interactions.Interaction): # List macros
     localmacros = dbcursor.execute(f"SELECT name FROM macros WHERE guildid = ?", [interaction.guild.id]).fetchall()
@@ -421,10 +427,9 @@ async def macroinfo(interaction:interactions.Interaction, name:str): # Get info 
         return
 
     macrobed = discord.Embed(title=f"`{name}` macro", description=f"""Author: <@{selectedmacro[2]}>
-Uses: {selectedmacro[6]}
+{f'**Alias macro for `{selectedmacro[1].removeprefix("@")}`**' if selectedmacro[1].startswith("@") else f'Uses: {selectedmacro[6]}'}
 Created on: <t:{selectedmacro[3]}:f>
 Last modified on: <t:{selectedmacro[4]}:f>""", color=discord.Color.blurple())
-    if selectedmacro[1].startswith("@"): macrobed.set_footer(text=f"Alias macro for \"{selectedmacro[1].removeprefix('@')}\"")
     await interaction.response.send_message(embed=macrobed)
 
 @tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.")
