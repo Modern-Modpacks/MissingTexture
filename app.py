@@ -74,6 +74,7 @@ TABLES = {
     "responses": {
         "name": "text",
         "content": "json",
+        "authorid": "integer",
         "guildid": "integer",
         "memeonly": "integer",
         "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
@@ -168,7 +169,7 @@ async def on_message(message:discord.Message):
     # Response logic
     ismeme = channel_has_tag(message.channel.id, "meme")
     responses = dbcursor.execute("SELECT * FROM responses WHERE guildid = ?", [message.guild.id]).fetchall() # Get all responses available in the current server from db
-    for name, content, _, memeonly in responses: # For every automod response
+    for name, content, _authorid, _guildid, memeonly in responses: # For every automod response
         match = search(r"\b"+name+r"\b", message.content, IGNORECASE) # Check if the name/triggerword of the response is in the message
 
         content = loads(content) # Load content json
@@ -360,6 +361,8 @@ async def macrolist(interaction:interactions.Interaction): # List macros
 @app_commands.autocomplete(alias=fuzz_autocomplete("macros"))
 @app_commands.describe(name="The name of the macro you want to add", alias="Enter the name of another macro if you want to create an alias macro (will just respond with the same message)")
 async def macroadd(interaction:interactions.Interaction, name:str, alias:str=""): # Add a macro
+    name = name.lower()
+
     if not interaction.user.guild_permissions.manage_messages: # Check for perms
         await interaction.response.send_message("You don't have enough permissions to add macros to this server. Tough luck!", ephemeral=True)
         return
