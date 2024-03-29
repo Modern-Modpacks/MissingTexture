@@ -103,6 +103,7 @@ SUBSCRIPT = {
 # Command groups
 GROUPS = {
     "macros": app_commands.Group(name="macro", description="Commands that are related to macros"),
+    "responses": app_commands.Group(name="response", description="Commands that are related to responses", default_permissions=discord.Permissions(8192)),
     "times": app_commands.Group(name="times", description="Set your timezone/get another person's tz")
 }
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
@@ -171,9 +172,7 @@ async def on_message(message:discord.Message):
     responses = dbcursor.execute("SELECT * FROM responses WHERE guildid = ?", [message.guild.id]).fetchall() # Get all responses available in the current server from db
     for name, content, _authorid, _guildid, memeonly in responses: # For every automod response
         match = search(r"\b"+name+r"\b", message.content, IGNORECASE) # Check if the name/triggerword of the response is in the message
-
-        content = loads(content) # Load content json
-        if type(content)==list: content = choice(content) # Randomly select a value if the response is a list
+        content = choice(loads(content)) # Randomly select a value from the responses
 
         if (
             not match or f":{name}:" in message.content.lower() # If the trigger word is found and it's not a name of an emoji
@@ -280,12 +279,13 @@ def insert_macro(name:str, content:str, interaction:discord.Interaction): # Inse
     execute_and_commit("INSERT INTO macros (name, content, authorid, timecreated, timelastedited, guildid, uses) VALUES (?, ?, ?, ?, ?, ?, ?)", [name, content, interaction.user.id, floor(time()), floor(time()), interaction.guild.id, 0])
 async def send_log_message(embed:discord.Embed): # Send an embed to log channels
     for c in logchannels: await c.send(embed=embed)
-async def send_macro_log_message(name:str, content:str, previouscontent:str, user:discord.User, guild:discord.Guild, action:str, color:discord.Colour): # Send a log message that's related to macros
+async def send_macroesque_log_message(noun:str, name:str, content:str, previouscontent:str, authorid:int, user:discord.User, guild:discord.Guild, action:str, color:discord.Colour): # Send a log message that's related to macros
     sep = "\n"
-    macrobed = discord.Embed(color=color, title=f"A macro has been {action.lower()}!", description=f"""Details:
+    macrobed = discord.Embed(color=color, title=f"A {noun} has been {action.lower()}!", description=f"""Details:
 
 Server: **{guild.name}**
-Name: `{name}`{sep+f'''Old content: ```
+Name: `{name}`
+Creator: <@{authorid}>{sep+f'''Old content: ```
 {previouscontent}
 ```''' if previouscontent else ''}
 {'New c' if previouscontent else 'C'}ontent: ```
@@ -310,23 +310,30 @@ class ConfirmaionView(ui.View): # Yes/No view prompt
         await self.callback()
     @ui.button(label="No", style=discord.ButtonStyle.red, emoji="<:red_cross_mark:1222622729845346414>")
     async def cancel(self, interaction: discord.Interaction, _button: ui.Button): await interaction.response.edit_message(content="Action aborted!", view=None, embed=None) # If no is clicked, abort the action
-class AddOrEditMacroModal(ui.Modal): # /macro add modal
-    content = ui.TextInput(label="Content", style=discord.TextStyle.paragraph) # The content of the macro
+class AddOrEditModal(ui.Modal): # /macro or /response add/edit modal
+    content = ui.TextInput(label="Content", style=discord.TextStyle.paragraph) # The content of the macro/response
 
-    def __init__(self, name:str, precontent:str=""):
-        self.name = name # The name of the macro
-        self.precontent = precontent # The previous content of the macro
+    def __init__(self, name:str, precontent:str="", isresponse:bool=False, memeonly:bool=None):
+        self.name = name # The name of the macro/response
+        self.precontent = "|;".join(loads(precontent)) if isresponse and precontent else precontent # The previous content of the macro/response
+        self.isresponse = isresponse # What is being added/modified, macro or response
+        self.memeonly = memeonly # If the response is meme channel only
+        self.noun = "response" if isresponse else "macro" # Select the correct noun
 
-        self.content.default = precontent # Set the content if already exists
-        super().__init__(title=f"{'Editing' if precontent else 'Adding'} \"{name}\" macro") # Set the title (adding if doesn't exist, editing if does)
+        self.content.default = self.precontent # Set the content if already exists
+        super().__init__(title=f"{'Editing' if precontent else 'Adding'} \"{name}\" {self.noun}") # Set the title (adding if doesn't exist, editing if does)
 
     async def on_submit(self, interaction: discord.Interaction): # When the modal is sumbitted
-        if self.precontent: execute_and_commit("UPDATE macros SET content = ?, timelastedited = ? WHERE name = ? AND guildid = ?", [self.content.value, floor(time()), self.name, interaction.guild.id]) # Edit the macro if it exists
-        else: insert_macro(self.name, self.content.value, interaction) # Insert macro into the db if doesn't exist
+        content = dumps(self.content.value.split("|;")) if self.isresponse else self.content.value
+
+        if self.precontent: execute_and_commit(f"UPDATE {self.noun}s SET content = ?, {'memeonly' if self.isresponse else 'timelastedited'} = ? WHERE name = ? AND guildid = ?", [content, (int(self.memeonly) if self.isresponse else floor(time())), self.name, interaction.guild.id]) # Edit the macro/response if it exists
+        else: # Insert macro/response into the db if doesn't exist
+            if self.isresponse: execute_and_commit("INSERT INTO responses (name, content, authorid, guildid, memeonly) VALUES (?, ?, ?, ?, ?)", [self.name, content, interaction.user.id, interaction.guild.id, int(self.memeonly)])
+            else: insert_macro(self.name, content, interaction)
 
         verb = "edited" if self.precontent else "added" # Get the correct action (added if doesn't exist, edited if does)
-        await send_macro_log_message(self.name, self.content.value, self.precontent, interaction.user, interaction.guild, verb, (discord.Color.yellow() if self.precontent else discord.Color.purple())) # Notify the mods
-        await interaction.response.send_message(f"Macro \"{self.name}\" has successfully been {verb}!", ephemeral=True) # Yipee
+        await send_macroesque_log_message(self.noun, self.name, self.content.value, self.precontent, interaction.user.id, interaction.user, interaction.guild, verb, (discord.Color.yellow() if self.precontent else discord.Color.purple())) # Notify the mods
+        await interaction.response.send_message(f"{self.noun.title()} `{self.name}` has successfully been {verb}!", ephemeral=True) # Yipee
 
 # COMMANDS
 @GROUPS["macros"].command(name="run", description="Sends a quick macro message to the chat")
@@ -357,67 +364,6 @@ async def macrolist(interaction:interactions.Interaction): # List macros
 
     if localmacros: await interaction.response.send_message(content=" | ".join([i[0] for i in localmacros]), ephemeral=True)
     else: await interaction.response.send_message(content="No macros found!", ephemeral=True)
-@GROUPS["macros"].command(name="add", description="Add a macro")
-@app_commands.autocomplete(alias=fuzz_autocomplete("macros"))
-@app_commands.describe(name="The name of the macro you want to add", alias="Enter the name of another macro if you want to create an alias macro (will just respond with the same message)")
-async def macroadd(interaction:interactions.Interaction, name:str, alias:str=""): # Add a macro
-    name = name.lower()
-
-    if not interaction.user.guild_permissions.manage_messages: # Check for perms
-        await interaction.response.send_message("You don't have enough permissions to add macros to this server. Tough luck!", ephemeral=True)
-        return
-    
-    if dbcursor.execute("SELECT * FROM macros WHERE name = ? AND guildid = ?", [name, interaction.guild.id]).fetchone()!=None: # Check if the macro of the same name exists on the server
-        await interaction.response.send_message(f"Macro `{name}` already exists on this server. Try a different name", ephemeral=True) # Refuse to add
-        return
-    
-    if alias: 
-        content = "@"+alias
-        insert_macro(name, content, interaction) # Insert alias macro into the db
-        await send_macro_log_message(name, content, "", interaction.user, interaction.guild, "created", discord.Color.purple())
-        await interaction.response.send_message(f"Alias macro `{name}` successfully created and linked to `{alias}`!", ephemeral=True) # Yay
-    else: await interaction.response.send_modal(AddOrEditMacroModal(name)) # Open the modal if the macro being added is not an alias
-@GROUPS["macros"].command(name="edit", description="Edit a macro")
-@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
-@app_commands.describe(name="The name of the macro you want to edit")
-async def macroedit(interaction:interactions.Interaction, name:str): # Edit a macro
-    name = name.lower()
-    selectedmacro = dbcursor.execute("SELECT content, authorid FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
-
-    if not selectedmacro:
-        await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
-        return
-
-    if not interaction.user.guild_permissions.administrator and interaction.user.id!=selectedmacro[1]: # Check perms
-        await interaction.response.send_message(f"You don't have enough permissions to edit the `{name}` macro. Sorry!", ephemeral=True)
-        return
-    
-    await interaction.response.send_modal(AddOrEditMacroModal(name, selectedmacro[0])) # Open the modal
-@GROUPS["macros"].command(name="remove", description="Remove a macro")
-@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
-@app_commands.describe(name="The name of the macro you want to remove")
-async def macroremove(interaction:interactions.Interaction, name:str): # Remove a macro
-    name = name.lower()
-    selectedmacro = dbcursor.execute("SELECT content, authorid FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
-
-    if not selectedmacro:
-        await interaction.response.send_message(content="Unknown macro: `"+name+"`", ephemeral=True)
-        return
-
-    if not interaction.user.guild_permissions.administrator and interaction.user.id!=selectedmacro[1]: # Check perms
-        await interaction.response.send_message(f"You don't have enough permissions to remove the `{name}` macro. Sorry!", ephemeral=True)
-        return
-    
-    async def deletemacro():
-        execute_and_commit("DELETE FROM macros WHERE guildid = ? AND name = ?", [interaction.guild.id, name]) # Remove the macro from db
-        await send_macro_log_message(name, selectedmacro[0], "", interaction.user, interaction.guild, "removed", discord.Color.red()) # Notify the mods
-        await interaction.followup.send(content=f"Macro `{name}` successfully removed!", ephemeral=True) # Kill
-
-    await interaction.response.send_message(
-        embed=discord.Embed(title=f"Are you sure you want to remove the `{name}` macro?", color=discord.Color.red()),
-        view=ConfirmaionView(deletemacro),
-        ephemeral=True
-    ) # Confirmation
 @GROUPS["macros"].command(name="info", description="Get info about a macro")
 @app_commands.autocomplete(name=fuzz_autocomplete("macros"))
 @app_commands.describe(name="The name of the macro you want to get info about")
@@ -434,6 +380,95 @@ async def macroinfo(interaction:interactions.Interaction, name:str): # Get info 
 Created on: <t:{selectedmacro[3]}:f>
 Last modified on: <t:{selectedmacro[4]}:f>""", color=discord.Color.blurple())
     await interaction.response.send_message(embed=macrobed)
+
+async def macroeqsueadd(interaction:interactions.Interaction, name:str, isresponse:bool, memeonly:bool, openmodal:bool): # Add a macro/response
+    name = name.lower()
+    noun = "response" if isresponse else "macro"
+
+    if not interaction.user.guild_permissions.manage_messages: # Check perms
+        await interaction.response.send_message(f"You don't have enough permissions to add {noun}s to this server. {'Not neat!' if isresponse else 'Tough luck!'}", ephemeral=True)
+        return
+    
+    if dbcursor.execute(f"SELECT * FROM {noun}s WHERE name = ? AND guildid = ?", [name, interaction.guild.id]).fetchone()!=None: # Check if the macro/response of the same name exists on the server
+        await interaction.response.send_message(f"{noun.title()} `{name}` already exists on this server. Try a different name", ephemeral=True) # Refuse to add
+        return
+    
+    if openmodal: await interaction.response.send_modal(AddOrEditModal(name, "", isresponse, memeonly)) # Open the modal
+@GROUPS["macros"].command(name="add", description="Add a macro")
+@app_commands.autocomplete(alias=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to add", alias="Enter the name of another macro if you want to create an alias macro (will just respond with the same message)")
+async def macroadd(interaction:interactions.Interaction, name:str, alias:str=""): # Add a macro
+    await macroeqsueadd(interaction, name, False, None, not alias)
+    if not alias: return 
+        
+    content = "@"+alias
+    insert_macro(name, content, interaction) # Insert alias macro into the db
+    await send_macroesque_log_message("macro", name, content, "", interaction.user.id, interaction.user, interaction.guild, "created", discord.Color.purple())
+    await interaction.response.send_message(f"Alias macro `{name}` successfully created and linked to `{alias}`!", ephemeral=True) # Yay
+@GROUPS["responses"].command(name="add", description="Add an automod response. Use \"|;\" as a random separator")
+@app_commands.describe(name="The trigger word of the response you want to add", memeonly="Whether you want the response to only work in channels tagged as 'meme'")
+async def responseadd(interaction:interactions.Interaction, name:str, memeonly:bool=True): # Add a response
+    await macroeqsueadd(interaction, name, True, memeonly, True)
+async def macroesqueedit(interaction:interactions.Interaction, name:str, isresponse:bool, memeonly:bool): # Edit a macro/response
+    name = name.lower()
+    noun = "response" if isresponse else "macro"
+    selected = dbcursor.execute(f"SELECT content, authorid{', memeonly' if isresponse else ''} FROM {noun}s WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
+
+    if not selected: # Check if the response/macro already exists
+        await interaction.response.send_message(content=f"Unknown {noun}: `{name}`", ephemeral=True) # Refuse to edit if it doesn't
+        return
+
+    if not interaction.user.guild_permissions.administrator and interaction.user.id!=selected[1]: # Check perms
+        await interaction.response.send_message(f"You don't have enough permissions to edit the `{name}` {noun}. Sorry!", ephemeral=True)
+        return
+    
+    if isresponse and memeonly==None: memeonly = selected[2]
+    await interaction.response.send_modal(AddOrEditModal(name, selected[0], isresponse, memeonly)) # Open the modal
+@GROUPS["macros"].command(name="edit", description="Edit a macro")
+@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to edit")
+async def macroedit(interaction:interactions.Interaction, name:str): # Edit a macro
+    await macroesqueedit(interaction, name, False, None)
+@GROUPS["responses"].command(name="edit", description="Edit an automod response. Use \"|;\" as a random separator")
+@app_commands.autocomplete(name=fuzz_autocomplete("responses"))
+@app_commands.describe(name="The name of the response you want to edit", memeonly="Whether you want the response to only work in channels tagged as 'meme'")
+async def responseedit(interaction:interactions.Interaction, name:str, memeonly:bool=None): # Edit a response
+    await macroesqueedit(interaction, name, True, memeonly)
+async def macroesqueremove(interaction:interactions.Interaction, name:str, isresponse:bool): # Remove a macro/response
+    name = name.lower()
+    noun = "response" if isresponse else "macro"
+    selected = dbcursor.execute(f"SELECT content, authorid FROM {noun}s WHERE guildid = ? AND name = ?", [interaction.guild.id, name]).fetchone()
+
+    if not selected: # Check if the response/macro already exists
+        await interaction.response.send_message(content=f"Unknown {noun}: `{name}`", ephemeral=True) # Refuse to remove if it doesn't
+        return
+
+    if not interaction.user.guild_permissions.administrator and interaction.user.id!=selected[1]: # Check perms
+        await interaction.response.send_message(f"You don't have enough permissions to remove the `{name}` {noun}. Sorry!", ephemeral=True)
+        return
+    
+    async def delete():
+        execute_and_commit(f"DELETE FROM {noun}s WHERE guildid = ? AND name = ?", [interaction.guild.id, name]) # Remove the macro/response from db
+
+        content = "|;".join(loads(selected[0])) if isresponse else selected[0]
+        await send_macroesque_log_message(noun, name, content, "", selected[1], interaction.user, interaction.guild, "removed", discord.Color.red()) # Notify the mods
+        await interaction.followup.send(content=f"{noun.title()} `{name}` successfully removed!", ephemeral=True) # Kill
+
+    await interaction.response.send_message(
+        embed=discord.Embed(title=f"Are you sure you want to remove the `{name}` {noun}?", color=discord.Color.red()),
+        view=ConfirmaionView(delete),
+        ephemeral=True
+    ) # Confirmation
+@GROUPS["macros"].command(name="remove", description="Remove a macro")
+@app_commands.autocomplete(name=fuzz_autocomplete("macros"))
+@app_commands.describe(name="The name of the macro you want to remove")
+async def macroremove(interaction:interactions.Interaction, name:str): # Remove a macro
+    await macroesqueremove(interaction, name, False)
+@GROUPS["responses"].command(name="remove", description="Remove an automod response")
+@app_commands.autocomplete(name=fuzz_autocomplete("responses"))
+@app_commands.describe(name="The name of the response you want to remove")
+async def responseremove(interaction:interactions.Interaction, name:str): # Remove a response
+    await macroesqueremove(interaction, name, True)
 
 @tree.command(name="chemsearch", description="Searches for a chemical compound based on the query.")
 @app_commands.describe(query="Compound/Substance name or PubChem CID/SID", type="Search for Compounds/Substances. Optional, \"Compound\" by default", bettersearch="Enables better search feature, which might take longer. Optional, false by default")
