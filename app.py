@@ -645,7 +645,7 @@ async def kjspkg(interaction:interactions.Interaction, package:str): # kjspkgloo
     kjsbed.set_thumbnail(url="https://raw.githubusercontent.com/Modern-Modpacks/assets/main/Icons/Other/kjspkg.png")
 
     repostr = get(KJSPKG_PKGS_LINK).json()[package]
-    repo = repostr.split("$")[0]
+    repo = repostr.split("$")[0].split("@")[0]
     path = repostr.split("$")[-1].split("@")[0]+"/" if "$" in repostr else ""
     branch = repostr.split("@")[-1] if "@" in repostr else "main"
     infourl = f"https://raw.githubusercontent.com/{repo}/{branch}/{path}.kjspkg"
