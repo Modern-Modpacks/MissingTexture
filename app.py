@@ -674,7 +674,7 @@ async def kjspkg(interaction:interactions.Interaction, package:str): # kjspkgloo
 
     # Get the repo's author avatar from github using its api
     authoravatar = None
-    ghinfo = get("https://api.github.com/repos/"+repo, headers={"Authorization": "Bearer "+getenv("GITHUB_KEY")} if getenv("GITHUBKEY")!=None else {})
+    ghinfo = get("https://api.github.com/repos/"+repo, headers={"Authorization": "Bearer "+getenv("GITHUB_KEY")} if getenv("GITHUB_KEY")!=None else {})
     if ghinfo.status_code==200:
         ghinfo = ghinfo.json()
         authoravatar = ghinfo["owner"]["avatar_url"]
