@@ -690,29 +690,6 @@ async def kjspkg(interaction:interactions.Interaction, package:str): # kjspkgloo
 async def on_root_get():
 	return "OK" # Return 👍
 
-# Github translator webhook
-@server.post("/translators")
-async def on_translator_webhook():
-    data = loads(request.get_data()) # Change data
-    commit = data["commits"][0] if data["commits"] else data["head_commit"] # Get the head commit
-    changed_files = [i for i in commit["added"]+commit["modified"] if i.replace("-", "_").lower().endswith("en_us.json")] # All files named "en_us.json" or similar that were changed
-
-    if changed_files: # If any files are in changed_files
-        url = data["repository"]["url"]
-        blob = f"{url}/blob/{data['repository']['default_branch']}"
-
-        # Create an embed with info
-        transbed = discord.Embed(color = discord.Color.purple(), title = "Lang file(s) changed!", url=url)
-        transbed.description = "Changed files:\n\n"+"\n".join([f"[{i}]({blob}/{i})" for i in changed_files])
-        transbed.set_thumbnail(url = blob + "/src/main/resources/pack.png?raw=true")
-        transbed.set_footer(text = "Changed mod: "+data["repository"]["name"].replace("-", " ").title())
-
-        # Send the message
-        translators = run_coroutine_threadsafe(run_coroutine_threadsafe(client.fetch_channel(CHANNELS["mm"]["translators"]), client.loop)).result()
-        run_coroutine_threadsafe(translators.send(content="<@&1126286016781762680>", embed=transbed), client.loop)
-
-    return "OK" # Return 👍
-
 # START BOT
 try:
     token = getenv("DISCORD_KEY") # Get the key from env
