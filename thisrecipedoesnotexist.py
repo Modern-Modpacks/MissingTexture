@@ -125,8 +125,14 @@ def create(type:str, outputitem:str, generatepastes:bool) -> (Image.Image, tuple
     cell = itemsize*benchsize # Find the place where the output should be pasted
     grid : Image.Image = Image.open(f"assets/thisrecipedoesnotexist/gui/{name}.png") # Open the crafting bench GUI image
     grid = grid.resize((grid.width*4, grid.height*4), Image.NEAREST) # Resize it to be a little big bigger with nearest neighbor
-    for i, img in enumerate(inputs): grid.paste(img, (offset[0]+(itemsize+gap)*(i%benchsize), offset[1]+(itemsize+gap)*(i//benchsize)), img if img.mode=="RGBA" else None) # Place the inputs
-    grid.paste(output, (cell+outputoffset[0], (offset[1]+cell+outputoffset[1])//2), output if output.mode=="RGBA" else None) # Place the output
+    for i, img in enumerate(inputs): # Place the inputs
+        imgfull = Image.new("RGBA", (grid.width, grid.height), "#00000000")
+        imgfull.paste(img, (offset[0]+(itemsize+gap)*(i%benchsize), offset[1]+(itemsize+gap)*(i//benchsize)), img if img.mode=="RGBA" else None)
+        grid = Image.alpha_composite(grid, imgfull)
+    # Place the output
+    outputfull = Image.new("RGBA", (grid.width, grid.height), "#00000000")
+    outputfull.paste(output, (cell+outputoffset[0], (offset[1]+cell+outputoffset[1])//2), output if output.mode=="RGBA" else None)
+    grid = Image.alpha_composite(grid, outputfull)
 
     bg : Image.Image = Image.open(choice(glob("assets/thisrecipedoesnotexist/bg/*.png"))) # Open a random background image
     bg = ImageEnhance.Brightness(bg).enhance(.3) # Reduce the brightness to make it look realistic
