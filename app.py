@@ -115,12 +115,8 @@ logchannels : list[discord.TextChannel] = [] # Channels where the logs should be
 @client.event
 async def on_ready():
     async for guild in client.fetch_guilds(): # For every server in the bot is in
-        if client.get_guild(guild.id)==None: continue # if the bot is not in the server, skip it
-
-        for group in GROUPS.values(): tree.add_command(group, guild=guild) # Add the command groups
-
-        tree.copy_global_to(guild=guild) # Copy global commands locally
-        await tree.sync(guild=guild) # Sync
+        if client.get_guild(guild.id)==None: continue # If the bot is not in the server, skip it
+        await register_commands_on_guild(guild) # Otherwise, register the commands on it
 
     # Init db
     for table, contents in TABLES.items():
@@ -148,6 +144,8 @@ async def on_ready():
 
     print(f"Logged in as: {client.user}") # Notify when done
     await send_log_message(discord.Embed(title="I'm online again!", description="Hello world!", timestamp=datetime.today(), color=discord.Color.green()).set_thumbnail(url=get_user_pfp(client.user))) # Notify through discord
+@client.event
+async def on_guild_join(guild: discord.Guild): register_commands_on_guild(guild) # Add the commands to the server whenever the bot joins one
 @client.event
 async def on_message(message:discord.Message):
     if message.author.bot: return # Skip the message if the author is a bot
@@ -277,6 +275,10 @@ def get_user_pfp(user:discord.User) -> str: # Get user pfp or return the default
     return user.default_avatar.url
 def insert_macro(name:str, content:str, interaction:discord.Interaction): # Insert a macro into the db
     execute_and_commit("INSERT INTO macros (name, content, authorid, timecreated, timelastedited, guildid, uses) VALUES (?, ?, ?, ?, ?, ?, ?)", [name, content, interaction.user.id, floor(time()), floor(time()), interaction.guild.id, 0])
+async def register_commands_on_guild(guild:discord.Guild) -> None: # Register commands on a guild
+    for group in GROUPS.values(): tree.add_command(group, guild=guild) # Add the command groups
+    tree.copy_global_to(guild=guild) # Copy global commands locally
+    await tree.sync(guild=guild) # Sync
 async def send_log_message(embed:discord.Embed): # Send an embed to log channels
     for c in logchannels: await c.send(embed=embed)
 async def send_macroesque_log_message(noun:str, name:str, content:str, previouscontent:str, authorid:int, user:discord.User, guild:discord.Guild, action:str, color:discord.Colour): # Send a log message that's related to macros
@@ -614,7 +616,7 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None): #
     
     await interaction.delete_original_response() # After 2 minutes, delete the response
     
-@tree.command(name = "thisrecipedoesnotexist", description = "Generates and sends a random crafting table recipe")
+@tree.command(name = "thisrecipedoesnotexist", description = "Generate a random crafting table recipe")
 @app_commands.choices(type=[app_commands.Choice(name=f"{i}x{i}", value=f"{i}x{i}") for i in range(3, 10, 2)])
 @app_commands.describe(type="The type of crafting table", outputitem="Output item id", exportrecipe="Whether or not to export the recipe to a kjs/ct script format")
 async def recipe(interaction:interactions.Interaction, type:str=None, outputitem:str=None, exportrecipe:bool=False): # TRDNE
@@ -636,7 +638,7 @@ async def recipe(interaction:interactions.Interaction, type:str=None, outputitem
         if links!=None: buttons.add_item(ui.Button(label="KubeJS", url=links[0])) # If exportrecipe is passed, create and send the link to the kjs exported recipe
         await interaction.followup.send(file=discord.File(fp=imgbin, filename=f"recipe{type}.png"), view=buttons)
 
-@tree.command(name = "kjspkglookup", description = "Gets info about a KJSPKG package")
+@tree.command(name = "kjspkglookup", description = "Get info about a KJSPKG package")
 @app_commands.autocomplete(package=fuzz_autocomplete(sorted(get(KJSPKG_PKGS_LINK).json().keys())))
 @app_commands.describe(package="Package name")
 async def kjspkg(interaction:interactions.Interaction, package:str): # kjspkglookup
@@ -682,6 +684,11 @@ async def kjspkg(interaction:interactions.Interaction, package:str): # kjspkgloo
     kjsbed.set_footer(text=f"Package made by {info['author']}. Info provided by KJSPKG.", icon_url=authoravatar) # Set the footer
 
     await interaction.response.send_message(embed=kjsbed) # Send the embed
+
+@tree.command(name = "eval", description = "Execute JS code")
+@app_commands.describe(code="The inline code to execute")
+async def eval(interaction:interactions.Interaction, code:str): # eval
+    await interaction.response.send_message(file=discord.File(BytesIO(get("https://eval-deez-nuts.xyz/static/eval-deez-nuts.mp3").content), filename="result.mp3")) # :troll:
 
 # FLASK ENDPOINTS
 
