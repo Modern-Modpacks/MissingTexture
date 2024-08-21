@@ -285,6 +285,7 @@ async def directdemocracy_loop(): # directdemocracy tag logic
             execute_and_commit(f"DELETE FROM directdemocracy WHERE messageid = ?", [messageid])
             continue
 
+        author = message.author # Get the author
         reactions = message.reactions # Get the reactions
         thread = await message.fetch_thread() # Get the thread underneath the message
 
@@ -292,8 +293,9 @@ async def directdemocracy_loop(): # directdemocracy tag logic
         positives = 0
         negatives = 0
         for r in reactions:
-            if str(r.emoji) == POSITIVE_EMOTE: positives = r.count - 1
-            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = r.count - 1
+            users = [user.id async for user in r.users()]
+            if str(r.emoji) == POSITIVE_EMOTE: positives = r.count - (2 if author.id in users else 1)
+            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = r.count - (2 if author.id in users else 1)
 
         if not positives and not negatives and not secondannouncementsent: # If there is no reactions, remind people to add them
             await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {DEMOCRACY_SECOND_LOOP} seconds, it will be automatically accepted.")
@@ -307,7 +309,7 @@ async def directdemocracy_loop(): # directdemocracy tag logic
             await thread.edit(locked=True) # Lock the thread
 
             title, description = search(IDEA_REGEX, message.content).groups() # Get title and description using regex
-            authortrello = dbcursor.execute(f"SELECT trello FROM users WHERE id = {message.author.id}").fetchone()[0] # Get author's trello
+            authortrello = dbcursor.execute(f"SELECT trello FROM users WHERE id = {author.id}").fetchone()[0] # Get author's trello
             if authortrello: description += "\n---\nSuggested by @"+authortrello # Mention author if his trello is in the db
             post("https://api.trello.com/1/cards", headers={"Accept": "application/json"}, params={ # Make a new card on trello
                 "key": getenv("TRELLO_KEY"),
