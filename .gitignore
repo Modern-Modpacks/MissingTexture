@@ -1,5 +1,6 @@
 data.json
 *.db
+*.log
 env
 .env
 recipe.png
