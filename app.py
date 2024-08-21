@@ -6,11 +6,11 @@ filterwarnings("ignore")
 
 # Discord.py and related
 import discord
-from discord import app_commands, interactions, ui
+from discord import NotFound, app_commands, interactions, ui
 from discord.ext import tasks
 
 # System stuff
-from asyncio import sleep, coroutine, run_coroutine_threadsafe
+from asyncio import sleep, coroutine
 from os import getenv
 from io import BytesIO
 from threading import Thread
@@ -30,8 +30,8 @@ from pytz import all_timezones
 from pytz import timezone as tz
 
 # Web-related stuff
-from flask import Flask, request
-from requests import get
+from flask import Flask
+from requests import get, post
 from httpx import AsyncClient
 from urllib import error, parse
 
@@ -59,7 +59,8 @@ TABLES = {
     "users": {
         "id": "integer UNIQUE",
         "pings": "json",
-        "tz": "text"
+        "tz": "text",
+        "trello": "text"
     },
     "macros": {
         "name": "text",
@@ -78,6 +79,12 @@ TABLES = {
         "guildid": "integer",
         "memeonly": "integer",
         "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
+    },
+
+    "directdemocracy": {
+        "channelid": "integer",
+        "messageid": "integer",
+        "secondannouncementsent": "integer"
     }
 }
 # Channel ids
@@ -107,6 +114,13 @@ GROUPS = {
     "times": app_commands.Group(name="times", description="Set your timezone/get another person's tz")
 }
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
+# directdemocracy tag consts
+DEMOCRACY_SECOND_LOOP = 86400
+POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
+NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
+PINGABLE_ROLE = "<@&1207441060666806312>"
+IDEA_REGEX = r"^(.{1,35})\n*([\S\s]*)$"
+TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
 
 statusi = None # Status ticker position
 logchannels : list[discord.TextChannel] = [] # Channels where the logs should be sent to
@@ -132,8 +146,10 @@ async def on_ready():
 	# Start flask servers
     Thread(target=lambda: server.run(port=9999)).start()
     Thread(target=run_server).start()
-    # Start the status ticker animation
+
+    # Start the loops
     update_status.start()
+    directdemocracy_loop.start()
 
     # Check and un-archive keepalive threads + get log channels
     channels = dbcursor.execute("SELECT * FROM channels").fetchall() # Get all known channels
@@ -149,15 +165,29 @@ async def on_guild_join(guild: discord.Guild): register_commands_on_guild(guild)
 @client.event
 async def on_message(message:discord.Message):
     if message.author.bot: return # Skip the message if the author is a bot
+    guild = message.guild
 
     # Create thread if the channel has the appropriate tag
     thread = None
     if channel_has_tag(message.channel.id, "autothread"): thread = await message.create_thread(name="Post by "+message.author.display_name)
 
+    # Add votes for directdemocracy tagged channels and add the message to db
+    if channel_has_tag(message.channel.id, "directdemocracy"):
+        if not search(IDEA_REGEX, message.content): # If the message is formatted wrongly according to regex, close it
+            await message.add_reaction("<:red_cross_mark:1222622729845346414>")
+            await thread.send("Invalid idea format.")
+            await thread.edit(locked=True)
+        else:
+            await message.add_reaction(POSITIVE_EMOTE)
+            await message.add_reaction(NEGATIVE_EMOTE)
+            await thread.send(PINGABLE_ROLE)
+
+            execute_and_commit("INSERT INTO directdemocracy (channelid, messageid, secondannouncementsent) VALUES (?, ?, ?)", [message.channel.id, message.id, 0])
+
     # Pings logic
     users = dbcursor.execute("SELECT * FROM users WHERE id != ?", [message.author.id]).fetchall() # Get all users except the author from db
     for id, pings, *_ in users:
-        try: member = message.guild.get_member(id)
+        try: member = guild.get_member(id)
         except discord.NotFound: continue # If the member is not found, skip
 
         for ping in loads(pings): # For user's every ping trigger
@@ -167,7 +197,7 @@ async def on_message(message:discord.Message):
 
     # Response logic
     ismeme = channel_has_tag(message.channel.id, "meme")
-    responses = dbcursor.execute("SELECT * FROM responses WHERE guildid = ?", [message.guild.id]).fetchall() # Get all responses available in the current server from db
+    responses = dbcursor.execute("SELECT * FROM responses WHERE guildid = ?", [guild.id]).fetchall() # Get all responses available in the current server from db
     for name, content, _authorid, _guildid, memeonly in responses: # For every automod response
         match = search(r"\b"+name+r"\b", message.content, IGNORECASE) # Check if the name/triggerword of the response is in the message
         content = choice(loads(content)) # Randomly select a value from the responses
@@ -203,8 +233,8 @@ async def on_message(message:discord.Message):
                 if thread!=None: await thread.send(content) # Send the response in thread if present
                 else: await message.reply(content, mention_author=False) # Send the response in the same channel if not
         else: # If the $ prefix is present, send the sticker with the response value
-            if thread!=None: await thread.send(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")])
-            else: await message.reply(stickers=[i for i in (await message.guild.fetch_stickers()) if i.name == content.removeprefix("$")], mention_author=False)
+            if thread!=None: await thread.send(stickers=[i for i in (await guild.fetch_stickers()) if i.name == content.removeprefix("$")])
+            else: await message.reply(stickers=[i for i in (await guild.fetch_stickers()) if i.name == content.removeprefix("$")], mention_author=False)
 
         await sleep(.5) # Delay between individual responses
 @client.event
@@ -246,15 +276,56 @@ async def update_status(): # Update the status ticker animation
     # Loop
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
+@tasks.loop(seconds=DEMOCRACY_SECOND_LOOP)
+async def directdemocracy_loop(): # directdemocracy tag logic
+    ideas = dbcursor.execute("SELECT * FROM directdemocracy").fetchall() # Get all uncompleted messages
+    for channelid, messageid, secondannouncementsent in ideas: # For uncompleted message
+        try: message = await (await client.fetch_channel(channelid)).fetch_message(messageid) # Get the message object
+        except NotFound: # If the message was removed, yeet it from the db
+            execute_and_commit(f"DELETE FROM directdemocracy WHERE messageid = ?", [messageid])
+            continue
+
+        reactions = message.reactions # Get the reactions
+        thread = await message.fetch_thread() # Get the thread underneath the message
+
+        # Count the positive and negative reactions
+        positives = 0
+        negatives = 0
+        for r in reactions:
+            if str(r.emoji) == POSITIVE_EMOTE: positives = r.count - 1
+            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = r.count - 1
+
+        if not positives and not negatives and not secondannouncementsent: # If there is no reactions, remind people to add them
+            await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {DEMOCRACY_SECOND_LOOP} seconds, it will be automatically accepted.")
+            execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1 WHERE messageid = ?", [messageid])
+        elif negatives > positives: execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1 WHERE messageid = ?", [messageid]) # If there is more negatives than positives, wait and don't send the reminder
+        else: # If there is more positives than negatives
+            execute_and_commit(f"DELETE FROM directdemocracy WHERE messageid = ?", [messageid]) # Mark as complete by deleting
+
+            await message.add_reaction("✅") # Add a confirming reaction
+            await thread.send(f"{PINGABLE_ROLE} Idea passed.") # Remind everyone that it has been passed
+            await thread.edit(locked=True) # Lock the thread
+
+            title, description = search(IDEA_REGEX, message.content).groups() # Get title and description using regex
+            authortrello = dbcursor.execute(f"SELECT trello FROM users WHERE id = {message.author.id}").fetchone()[0] # Get author's trello
+            if authortrello: description += "\n---\nSuggested by @"+authortrello # Mention author if his trello is in the db
+            post("https://api.trello.com/1/cards", headers={"Accept": "application/json"}, params={ # Make a new card on trello
+                "key": getenv("TRELLO_KEY"),
+                "token": getenv("TRELLO_TOKEN"),
+
+                "idList": TRELLO_LIST_ID,
+                "name": title,
+                "desc": description 
+            })
 
 # HELPER FUNCTIONS
 def add_user_to_data(user:discord.User) -> None: # Add a user to the sqlite db
-    dbcursor.execute(f"""INSERT OR IGNORE INTO users VALUES (
+    execute_and_commit(f"""INSERT OR IGNORE INTO users VALUES (
         ?,
         "[]",
+        "",
         ""
     )""", [user.id])
-    db.commit()
 def fuzz_autocomplete(choices): # The fuzz autocomplete
     async def _autocomplete(interaction: interactions.Interaction, current:str) -> list: # Define an autocomplete coroutine
         if type(choices)==str: newchoices = [i[0] for i in dbcursor.execute(f"SELECT name FROM {choices} WHERE guildid = ?", [interaction.guild.id]).fetchall()] # If a string is passed, get all elements' names where guildid equals to the interaction guild id from a db table which has that name
@@ -563,8 +634,7 @@ async def editpings(interaction:interactions.Interaction, pings:str=""): # Set p
     add_user_to_data(interaction.user)
 
     pings = [i.lower() for i in pings.replace(', ', ',').split(',')] if pings else []
-    dbcursor.execute(f"UPDATE users SET pings = ? WHERE id = {interaction.user.id}", [dumps(pings)])
-    db.commit()
+    execute_and_commit(f"UPDATE users SET pings = ? WHERE id = {interaction.user.id}", [dumps(pings)])
 
     await interaction.response.send_message(content=f"Pings set! Your new pings are: `{','.join(pings)}`.", ephemeral=True)
 @GROUPS["times"].command(name = "set", description = "Set your timezone")
