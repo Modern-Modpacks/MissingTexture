@@ -310,7 +310,7 @@ async def directdemocracy_loop(): # directdemocracy tag logic
 
             title, description = search(IDEA_REGEX, message.content).groups() # Get title and description using regex
             authortrello = dbcursor.execute(f"SELECT trello FROM users WHERE id = {author.id}").fetchone()[0] # Get author's trello
-            if authortrello: description += "\n---\nSuggested by @"+authortrello # Mention author if his trello is in the db
+            if authortrello: description += "\nSuggested by @"+authortrello # Mention author if his trello is in the db
             post("https://api.trello.com/1/cards", headers={"Accept": "application/json"}, params={ # Make a new card on trello
                 "key": getenv("TRELLO_KEY"),
                 "token": getenv("TRELLO_TOKEN"),
