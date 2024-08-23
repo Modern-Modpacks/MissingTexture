@@ -84,6 +84,7 @@ TABLES = {
     "directdemocracy": {
         "channelid": "integer",
         "messageid": "integer",
+        "lastupdated": "integer",
         "secondannouncementsent": "integer"
     }
 }
@@ -115,12 +116,20 @@ GROUPS = {
 }
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
 # directdemocracy tag consts
-DEMOCRACY_SECOND_LOOP = 86400
-POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
-NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
-PINGABLE_ROLE = "<@&1207441060666806312>"
+# DEMOCRACY_SECOND_LOOP = 60
+# DEMOCRACY_UPDATE_SECONDS = 86400
+# POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
+# NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
+# PINGABLE_ROLE = "<@&1207441060666806312>"
+# TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
 IDEA_REGEX = r"^(.{1,35})\n*([\S\s]*)$"
-TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
+# Testing directdemocracy tag consts
+DEMOCRACY_SECOND_LOOP = 10
+DEMOCRACY_UPDATE_SECONDS = 10
+POSITIVE_EMOTE = "<:URETHRA:1203017844749504562>"
+NEGATIVE_EMOTE = "<:sus:820313019086667796>"
+PINGABLE_ROLE = "<@&885525438636650527>"
+TRELLO_LIST_ID = "66c8b70157df6031edad18d1"
 
 statusi = None # Status ticker position
 logchannels : list[discord.TextChannel] = [] # Channels where the logs should be sent to
@@ -182,7 +191,7 @@ async def on_message(message:discord.Message):
             await message.add_reaction(NEGATIVE_EMOTE)
             await thread.send(PINGABLE_ROLE)
 
-            execute_and_commit("INSERT INTO directdemocracy (channelid, messageid, secondannouncementsent) VALUES (?, ?, ?)", [message.channel.id, message.id, 0])
+            execute_and_commit("INSERT INTO directdemocracy (channelid, messageid, lastupdated, secondannouncementsent) VALUES (?, ?, ?, ?)", [message.channel.id, message.id, floor(time()), 0])
 
     # Pings logic
     users = dbcursor.execute("SELECT * FROM users WHERE id != ?", [message.author.id]).fetchall() # Get all users except the author from db
@@ -279,11 +288,13 @@ async def update_status(): # Update the status ticker animation
 @tasks.loop(seconds=DEMOCRACY_SECOND_LOOP)
 async def directdemocracy_loop(): # directdemocracy tag logic
     ideas = dbcursor.execute("SELECT * FROM directdemocracy").fetchall() # Get all uncompleted messages
-    for channelid, messageid, secondannouncementsent in ideas: # For uncompleted message
+    for channelid, messageid, lastupdated, secondannouncementsent in ideas: # For uncompleted message
         try: message = await (await client.fetch_channel(channelid)).fetch_message(messageid) # Get the message object
         except NotFound: # If the message was removed, yeet it from the db
             execute_and_commit(f"DELETE FROM directdemocracy WHERE messageid = ?", [messageid])
             continue
+
+        if lastupdated+DEMOCRACY_UPDATE_SECONDS >= time(): continue # If the set number of seconds since the last update haven't yet passed, ignore the message
 
         author = message.author # Get the author
         reactions = message.reactions # Get the reactions
@@ -299,8 +310,8 @@ async def directdemocracy_loop(): # directdemocracy tag logic
 
         if not positives and not negatives and not secondannouncementsent: # If there is no reactions, remind people to add them
             await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {DEMOCRACY_SECOND_LOOP} seconds, it will be automatically accepted.")
-            execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1 WHERE messageid = ?", [messageid])
-        elif negatives > positives: execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1 WHERE messageid = ?", [messageid]) # If there is more negatives than positives, wait and don't send the reminder
+            execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid])
+        elif negatives > positives: execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid]) # If there is more negatives than positives, wait and don't send the reminder
         else: # If there is more positives than negatives
             execute_and_commit(f"DELETE FROM directdemocracy WHERE messageid = ?", [messageid]) # Mark as complete by deleting
 
