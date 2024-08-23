@@ -10,7 +10,7 @@ from discord import NotFound, app_commands, interactions, ui
 from discord.ext import tasks
 
 # System stuff
-from asyncio import sleep, coroutine
+from asyncio import sleep
 from os import getenv
 from io import BytesIO
 from threading import Thread
@@ -401,7 +401,7 @@ async def unarchive_thread(thread:discord.Thread): # Unarchive thread by sending
 
 # HELPER CLASSES
 class ConfirmaionView(ui.View): # Yes/No view prompt
-    def __init__(self, callback: coroutine):
+    def __init__(self, callback):
         super().__init__()
         self.callback = callback
     
