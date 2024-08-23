@@ -7,3 +7,4 @@ pytz
 pubchempy
 pillow
 privatebinapi
+strip-markdown

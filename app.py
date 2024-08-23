@@ -17,7 +17,7 @@ from threading import Thread
 from traceback import format_exc
 
 # Other built-in modules
-from re import search, IGNORECASE
+from re import search, sub, IGNORECASE
 from random import choice
 from json import loads, dumps
 from sqlite3 import connect
@@ -38,6 +38,7 @@ from urllib import error, parse
 # Other pip modules
 from thefuzz import process
 from pubchempy import get_compounds, get_substances, Compound, Substance, BadRequestError
+from strip_markdown import strip_markdown
 
 # TRDNE
 from thisrecipedoesnotexist import create, get_path, run_server
@@ -116,20 +117,21 @@ GROUPS = {
 }
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
 # directdemocracy tag consts
-# DEMOCRACY_SECOND_LOOP = 60
-# DEMOCRACY_UPDATE_SECONDS = 86400
-# POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
-# NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
-# PINGABLE_ROLE = "<@&1207441060666806312>"
-# TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
+DEMOCRACY_SECOND_LOOP = 60
+DEMOCRACY_UPDATE_SECONDS = 86400
+POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
+NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
+PINGABLE_ROLE = "<@&1207441060666806312>"
+TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
 IDEA_REGEX = r"^(.{1,35})\n*([\S\s]*)$"
+LINK_REGEX = r"https?:\/\/.*\/.*\.(jpg|jpeg|png|mp4|mp3)[^\s]*"
 # Testing directdemocracy tag consts
-DEMOCRACY_SECOND_LOOP = 5
-DEMOCRACY_UPDATE_SECONDS = 1
-POSITIVE_EMOTE = "<:URETHRA:1203017844749504562>"
-NEGATIVE_EMOTE = "<:sus:820313019086667796>"
-PINGABLE_ROLE = "<@&885525438636650527>"
-TRELLO_LIST_ID = "66c8f03303330bd952aebeb9"
+# DEMOCRACY_SECOND_LOOP = 5
+# DEMOCRACY_UPDATE_SECONDS = 1
+# POSITIVE_EMOTE = "<:URETHRA:1203017844749504562>"
+# NEGATIVE_EMOTE = "<:sus:820313019086667796>"
+# PINGABLE_ROLE = "<@&885525438636650527>"
+# TRELLO_LIST_ID = "66c8f03303330bd952aebeb9"
 
 statusi = None # Status ticker position
 logchannels : list[discord.TextChannel] = [] # Channels where the logs should be sent to
@@ -320,8 +322,10 @@ async def directdemocracy_loop(): # directdemocracy tag logic
             await thread.edit(locked=True) # Lock the thread
 
             title, description = search(IDEA_REGEX, message.content).groups() # Get title and description using regex
+            title = strip_markdown(title) # Strip markdown from the title
+            description = sub(LINK_REGEX, "", description)
             authortrello = dbcursor.execute(f"SELECT trello FROM users WHERE id = {author.id}").fetchone()[0] # Get author's trello
-            if authortrello: description += "\nSuggested by @"+authortrello # Mention author if his trello is in the db
+            if authortrello: description += "\n\n---\n\nSuggested by @"+authortrello # Mention author if his trello is in the db
 
             req = post("https://api.trello.com/1/cards", headers={"Accept": "application/json"}, params={ # Make a new card on trello
                 "key": getenv("TRELLO_KEY"),
@@ -335,13 +339,13 @@ async def directdemocracy_loop(): # directdemocracy tag logic
                 send_log_message(discord.Embed(title="Trello request failed", description=f"```\n{req.content}\n```", color=discord.Color.blue()))
                 return
             for attachment in message.attachments + message.embeds:
-                print(post(f"https://api.trello.com/1/cards/{req.json()['id']}/attachments", headers={"Accept": "application/json"}, params={ # Transfer all of the attachments
+                post(f"https://api.trello.com/1/cards/{req.json()['id']}/attachments", headers={"Accept": "application/json"}, params={ # Transfer all of the attachments
                     "key": getenv("TRELLO_KEY"),
                     "token": getenv("TRELLO_TOKEN"),
 
                     "url": attachment.url,
                     "setCover": "false"
-                }).content)
+                })
 
 # HELPER FUNCTIONS
 def add_user_to_data(user:discord.User) -> None: # Add a user to the sqlite db
