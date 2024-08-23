@@ -124,12 +124,12 @@ KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/mai
 # TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
 IDEA_REGEX = r"^(.{1,35})\n*([\S\s]*)$"
 # Testing directdemocracy tag consts
-DEMOCRACY_SECOND_LOOP = 10
-DEMOCRACY_UPDATE_SECONDS = 10
+DEMOCRACY_SECOND_LOOP = 5
+DEMOCRACY_UPDATE_SECONDS = 1
 POSITIVE_EMOTE = "<:URETHRA:1203017844749504562>"
 NEGATIVE_EMOTE = "<:sus:820313019086667796>"
 PINGABLE_ROLE = "<@&885525438636650527>"
-TRELLO_LIST_ID = "66c8b70157df6031edad18d1"
+TRELLO_LIST_ID = "66c8f03303330bd952aebeb9"
 
 statusi = None # Status ticker position
 logchannels : list[discord.TextChannel] = [] # Channels where the logs should be sent to
@@ -309,7 +309,7 @@ async def directdemocracy_loop(): # directdemocracy tag logic
             elif str(r.emoji) == NEGATIVE_EMOTE: negatives = r.count - (2 if author.id in users else 1)
 
         if not positives and not negatives and not secondannouncementsent: # If there is no reactions, remind people to add them
-            await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {DEMOCRACY_SECOND_LOOP} seconds, it will be automatically accepted.")
+            await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {DEMOCRACY_UPDATE_SECONDS} seconds, it will be automatically accepted.")
             execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid])
         elif negatives > positives: execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid]) # If there is more negatives than positives, wait and don't send the reminder
         else: # If there is more positives than negatives
@@ -322,7 +322,8 @@ async def directdemocracy_loop(): # directdemocracy tag logic
             title, description = search(IDEA_REGEX, message.content).groups() # Get title and description using regex
             authortrello = dbcursor.execute(f"SELECT trello FROM users WHERE id = {author.id}").fetchone()[0] # Get author's trello
             if authortrello: description += "\nSuggested by @"+authortrello # Mention author if his trello is in the db
-            post("https://api.trello.com/1/cards", headers={"Accept": "application/json"}, params={ # Make a new card on trello
+
+            req = post("https://api.trello.com/1/cards", headers={"Accept": "application/json"}, params={ # Make a new card on trello
                 "key": getenv("TRELLO_KEY"),
                 "token": getenv("TRELLO_TOKEN"),
 
@@ -330,6 +331,17 @@ async def directdemocracy_loop(): # directdemocracy tag logic
                 "name": title,
                 "desc": description 
             })
+            if req.status_code!=200: # Log any errors
+                send_log_message(discord.Embed(title="Trello request failed", description=f"```\n{req.content}\n```", color=discord.Color.blue()))
+                return
+            for attachment in message.attachments + message.embeds:
+                print(post(f"https://api.trello.com/1/cards/{req.json()['id']}/attachments", headers={"Accept": "application/json"}, params={ # Transfer all of the attachments
+                    "key": getenv("TRELLO_KEY"),
+                    "token": getenv("TRELLO_TOKEN"),
+
+                    "url": attachment.url,
+                    "setCover": "false"
+                }).content)
 
 # HELPER FUNCTIONS
 def add_user_to_data(user:discord.User) -> None: # Add a user to the sqlite db
