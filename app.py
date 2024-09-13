@@ -123,7 +123,7 @@ POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
 NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
 PINGABLE_ROLE = "<@&1207441060666806312>"
 TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
-IDEA_REGEX = r"^(.{1,35})\n*([\S\s]*)$"
+IDEA_REGEX = r"^(.{1,100})\n*([\S\s]*)$"
 LINK_REGEX = r"https?:\/\/.*\/.*\.(jpg|jpeg|png|mp4|mp3)[^\s]*"
 # Testing directdemocracy tag consts
 # DEMOCRACY_SECOND_LOOP = 5
