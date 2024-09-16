@@ -163,6 +163,7 @@ async def on_ready():
 
     # Start the loops
     update_status.start()
+    unarchive_threads.start()
     directdemocracy_loop.start()
 
     # Check and un-archive keepalive threads + get log channels
@@ -265,11 +266,6 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User): # Log
         not user.bot and (not reaction.message.channel.permissions_for(user).send_messages or reaction.message.author == user)
     ): await reaction.remove(user)
 
-@client.event
-async def on_thread_update(before:discord.Thread, after:discord.Thread): # Keep threads alive
-    if not channel_has_tag(after.id, "keepalive"): return # Check for "keepalive" tag
-    if not before.archived and after.archived: await unarchive_thread(after) # Un-archive the keepalive thread
-
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
     errorbed = discord.Embed(color=discord.Color.red(), title="I AM SHITTING MYSELF!1!1", description=f"""Details:
@@ -304,6 +300,14 @@ async def update_status(): # Update the status ticker animation
     # Loop
     if statusi+screen<len(statusstring): statusi += 1
     else: statusi = 0
+@tasks.loop(seconds=10)
+async def unarchive_threads(): # Unarchive threads with "keepalive" tag
+    channels = dbcursor.execute("SELECT * FROM channels").fetchall()
+    for channelid, tags in channels:
+        if "keepalive" not in loads(tags): continue
+
+        channel = await client.fetch_channel(channelid)
+        if (type(channel)==discord.Thread and channel.archived): await unarchive_thread(channel)
 @tasks.loop(seconds=DEMOCRACY_SECOND_LOOP)
 async def directdemocracy_loop(): # directdemocracy tag logic
     ideas = dbcursor.execute("SELECT * FROM directdemocracy").fetchall() # Get all uncompleted messages
