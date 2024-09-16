@@ -22,6 +22,7 @@ from random import choice
 from json import loads, dumps
 from sqlite3 import connect
 from math import floor
+from difflib import ndiff
 
 # Dates and times
 from datetime import datetime
@@ -119,6 +120,7 @@ KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/mai
 # directdemocracy tag consts
 DEMOCRACY_SECOND_LOOP = 60
 DEMOCRACY_UPDATE_SECONDS = 86400
+IDEA_EDIT_ADDITIONAl_SECONDS = 600
 POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
 NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
 PINGABLE_ROLE = "<@&1207441060666806312>"
@@ -126,8 +128,9 @@ TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
 IDEA_REGEX = r"^(.{1,100})\n*([\S\s]*)$"
 LINK_REGEX = r"https?:\/\/.*\/.*\.(jpg|jpeg|png|mp4|mp3)[^\s]*"
 # Testing directdemocracy tag consts
-# DEMOCRACY_SECOND_LOOP = 5
-# DEMOCRACY_UPDATE_SECONDS = 1
+# DEMOCRACY_SECOND_LOOP = 15
+# DEMOCRACY_UPDATE_SECONDS = 15
+# IDEA_EDIT_ADDITIONAl_SECONDS = 10
 # POSITIVE_EMOTE = "<:URETHRA:1203017844749504562>"
 # NEGATIVE_EMOTE = "<:sus:820313019086667796>"
 # PINGABLE_ROLE = "<@&885525438636650527>"
@@ -249,6 +252,20 @@ async def on_message(message:discord.Message):
 
         await sleep(.5) # Delay between individual responses
 @client.event
+async def on_message_edit(before: discord.Message, after: discord.Message): # Logic for reminding the pingable role when a message in directdemocracy tagged channels is edited
+    if not channel_has_tag(after.channel.id, "directdemocracy") or before.content == after.content or not dbcursor.execute("SELECT * FROM directdemocracy WHERE messageid = ?", [after.id]).fetchone(): return
+
+    execute_and_commit(f"UPDATE directdemocracy SET lastupdated = lastupdated + {IDEA_EDIT_ADDITIONAl_SECONDS} WHERE messageid = ?", [after.id])
+    diff = '\n'.join([l for l in ndiff(before.content.splitlines(), after.content.splitlines()) if l.startswith('+') or l.startswith('-')])
+    await (await after.fetch_thread()).send(f"{PINGABLE_ROLE} The original idea was edited:\n\n```diff\n{diff}\n```")
+@client.event
+async def on_reaction_add(reaction: discord.Reaction, user: discord.User): # Logic for removing unwanted reactions from messages in directdemocracy tagged channels
+    if (
+        channel_has_tag(reaction.message.channel.id, "directdemocracy") and
+        not user.bot and (not reaction.message.channel.permissions_for(user).send_messages or reaction.message.author == user)
+    ): await reaction.remove(user)
+
+@client.event
 async def on_thread_update(before:discord.Thread, after:discord.Thread): # Keep threads alive
     if not channel_has_tag(after.id, "keepalive"): return # Check for "keepalive" tag
     if not before.archived and after.archived: await unarchive_thread(after) # Un-archive the keepalive thread
@@ -293,7 +310,7 @@ async def directdemocracy_loop(): # directdemocracy tag logic
     for channelid, messageid, lastupdated, secondannouncementsent in ideas: # For uncompleted message
         try: message = await (await client.fetch_channel(channelid)).fetch_message(messageid) # Get the message object
         except NotFound: # If the message was removed, yeet it from the db
-            execute_and_commit(f"DELETE FROM directdemocracy WHERE messageid = ?", [messageid])
+            execute_and_commit("DELETE FROM directdemocracy WHERE messageid = ?", [messageid])
             continue
 
         if lastupdated+DEMOCRACY_UPDATE_SECONDS >= time(): continue # If the set number of seconds since the last update haven't yet passed, ignore the message
@@ -306,16 +323,17 @@ async def directdemocracy_loop(): # directdemocracy tag logic
         positives = 0
         negatives = 0
         for r in reactions:
-            users = [user.id async for user in r.users()]
-            if str(r.emoji) == POSITIVE_EMOTE: positives = r.count - (2 if author.id in users else 1)
-            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = r.count - (2 if author.id in users else 1)
+            users = [user async for user in r.users() if not user.bot and message.channel.permissions_for(user).send_messages and user!=author]
+
+            if str(r.emoji) == POSITIVE_EMOTE: positives = r.count
+            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = r.count
 
         if not positives and not negatives and not secondannouncementsent: # If there is no reactions, remind people to add them
             await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {DEMOCRACY_UPDATE_SECONDS} seconds, it will be automatically accepted.")
-            execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid])
-        elif negatives > positives: execute_and_commit(f"UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid]) # If there is more negatives than positives, wait and don't send the reminder
+            execute_and_commit("UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid])
+        elif negatives > positives: execute_and_commit("UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid]) # If there is more negatives than positives, wait and don't send the reminder
         else: # If there is more positives than negatives
-            execute_and_commit(f"DELETE FROM directdemocracy WHERE messageid = ?", [messageid]) # Mark as complete by deleting
+            execute_and_commit("DELETE FROM directdemocracy WHERE messageid = ?", [messageid]) # Mark as complete by deleting
 
             await message.add_reaction("✅") # Add a confirming reaction
             await thread.send(f"{PINGABLE_ROLE} Idea passed.") # Remind everyone that it has been passed
@@ -349,7 +367,7 @@ async def directdemocracy_loop(): # directdemocracy tag logic
 
 # HELPER FUNCTIONS
 def add_user_to_data(user:discord.User) -> None: # Add a user to the sqlite db
-    execute_and_commit(f"""INSERT OR IGNORE INTO users VALUES (
+    execute_and_commit("""INSERT OR IGNORE INTO users VALUES (
         ?,
         "[]",
         "",
