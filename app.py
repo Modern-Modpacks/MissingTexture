@@ -118,6 +118,8 @@ GROUPS = {
 }
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
 # directdemocracy tag consts
+IDEA_REGEX = r"^(.{1,100})\n*([\S\s]*)$"
+LINK_REGEX = r"https?:\/\/.*\/.*\.(jpg|jpeg|png|mp4|mp3)[^\s]*"
 DEMOCRACY_SECOND_LOOP = 60
 DEMOCRACY_UPDATE_SECONDS = 86400
 IDEA_EDIT_ADDITIONAl_SECONDS = 600
@@ -125,8 +127,6 @@ POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
 NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
 PINGABLE_ROLE = "<@&1207441060666806312>"
 TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
-IDEA_REGEX = r"^(.{1,100})\n*([\S\s]*)$"
-LINK_REGEX = r"https?:\/\/.*\/.*\.(jpg|jpeg|png|mp4|mp3)[^\s]*"
 # Testing directdemocracy tag consts
 # DEMOCRACY_SECOND_LOOP = 15
 # DEMOCRACY_UPDATE_SECONDS = 15
@@ -329,11 +329,11 @@ async def directdemocracy_loop(): # directdemocracy tag logic
         for r in reactions:
             users = [user async for user in r.users() if not user.bot and message.channel.permissions_for(user).send_messages and user!=author]
 
-            if str(r.emoji) == POSITIVE_EMOTE: positives = r.count
-            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = r.count
+            if str(r.emoji) == POSITIVE_EMOTE: positives = len(users)
+            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = len(users)
 
         if not positives and not negatives and not secondannouncementsent: # If there is no reactions, remind people to add them
-            await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {DEMOCRACY_UPDATE_SECONDS} seconds, it will be automatically accepted.")
+            await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {time_period_to_human_readable(DEMOCRACY_UPDATE_SECONDS)} - it will be automatically accepted.")
             execute_and_commit("UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid])
         elif negatives > positives: execute_and_commit("UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid]) # If there is more negatives than positives, wait and don't send the reminder
         else: # If there is more positives than negatives
@@ -386,6 +386,25 @@ def fuzz_autocomplete(choices): # The fuzz autocomplete
 def execute_and_commit(instruction:str, params:list=[]): # Execute a sql command and commit
     db.execute(instruction, params)
     db.commit()
+def time_period_to_human_readable(scount:int) -> str: # Convert second count to "x hours, x minutes, x seconds"
+    hcount = 0
+    mcount = 0
+
+    if scount<60: return f"{scount} second{'s' if scount > 1 else ''}"
+    else:
+        mcount = floor(scount / 60)
+        scount = scount % 60
+
+        if mcount<60: 
+            if not scount: return f"{mcount} minute{'s' if mcount > 1 else ''}"
+            else: return f"{mcount} minute{'s' if mcount > 1 else ''}, {scount} second{'s' if scount > 1 else ''}"
+        else:
+            hcount = floor(mcount / 60)
+            mcount = mcount % 60
+
+            if not scount and not mcount: return f"{hcount} hour{'s' if hcount > 1 else ''}"
+            elif not scount: return f"{hcount} hour{'s' if hcount > 1 else ''}, {mcount} minute{'s' if mcount > 1 else ''}"
+            else: return f"{hcount} hour{'s' if hcount > 1 else ''}, {mcount} minute{'s' if mcount > 1 else ''}, {scount} second{'s' if scount > 1 else ''}"
 def channel_has_tag(id:int, tag:str) -> bool: # Check if the provided channel has the proived tag in the db
     channeltags = dbcursor.execute("SELECT tags FROM channels WHERE id = ?", [id]).fetchone() # Get the tags channel from db
     if channeltags==None: return False
