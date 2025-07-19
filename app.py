@@ -61,8 +61,7 @@ TABLES = {
     "users": {
         "id": "integer UNIQUE",
         "pings": "json",
-        "tz": "text",
-        "trello": "text"
+        "tz": "text"
     },
     "macros": {
         "name": "text",
@@ -81,13 +80,6 @@ TABLES = {
         "guildid": "integer",
         "memeonly": "integer",
         "CONSTRAINT": "U_name_guildid UNIQUE (name, guildid)"
-    },
-
-    "directdemocracy": {
-        "channelid": "integer",
-        "messageid": "integer",
-        "lastupdated": "integer",
-        "secondannouncementsent": "integer"
     }
 }
 # Channel ids
@@ -117,24 +109,6 @@ GROUPS = {
     "times": app_commands.Group(name="times", description="Set your timezone/get another person's tz")
 }
 KJSPKG_PKGS_LINK = "https://raw.githubusercontent.com/Modern-Modpacks/kjspkg/main/pkgs.json" # Link to kjspkg's pkgs.json
-# directdemocracy tag consts
-IDEA_REGEX = r"^(.{1,100})\n*([\S\s]*)$"
-LINK_REGEX = r"https?:\/\/.*\/.*\.(jpg|jpeg|png|mp4|mp3)[^\s]*"
-DEMOCRACY_SECOND_LOOP = 60
-DEMOCRACY_UPDATE_SECONDS = 86400
-IDEA_EDIT_ADDITIONAl_SECONDS = 600
-POSITIVE_EMOTE = "<:hehehehaw:1222078888486895647>"
-NEGATIVE_EMOTE = "<:grrr:1222078966341308506>"
-PINGABLE_ROLE = "<@&1207441060666806312>"
-TRELLO_LIST_ID = "65bfd68b1c0e6d367fe35bb8"
-# Testing directdemocracy tag consts
-# DEMOCRACY_SECOND_LOOP = 15
-# DEMOCRACY_UPDATE_SECONDS = 15
-# IDEA_EDIT_ADDITIONAl_SECONDS = 10
-# POSITIVE_EMOTE = "<:URETHRA:1203017844749504562>"
-# NEGATIVE_EMOTE = "<:sus:820313019086667796>"
-# PINGABLE_ROLE = "<@&885525438636650527>"
-# TRELLO_LIST_ID = "66c8f03303330bd952aebeb9"
 
 statusi = None # Status ticker position
 logchannels : list[discord.TextChannel] = [] # Channels where the logs should be sent to
@@ -164,7 +138,6 @@ async def on_ready():
     # Start the loops
     update_status.start()
     unarchive_threads.start()
-    directdemocracy_loop.start()
 
     # Check and un-archive keepalive threads + get log channels
     channels = dbcursor.execute("SELECT * FROM channels").fetchall() # Get all known channels
@@ -185,19 +158,6 @@ async def on_message(message:discord.Message):
     # Create thread if the channel has the appropriate tag
     thread = None
     if channel_has_tag(message.channel.id, "autothread"): thread = await message.create_thread(name="Post by "+message.author.display_name)
-
-    # Add votes for directdemocracy tagged channels and add the message to db
-    if channel_has_tag(message.channel.id, "directdemocracy"):
-        if not search(IDEA_REGEX, message.content): # If the message is formatted wrongly according to regex, close it
-            await message.add_reaction("<:red_cross_mark:1222622729845346414>")
-            await thread.send("Invalid idea format.")
-            await thread.edit(locked=True)
-        else:
-            await message.add_reaction(POSITIVE_EMOTE)
-            await message.add_reaction(NEGATIVE_EMOTE)
-            await thread.send(PINGABLE_ROLE)
-
-            execute_and_commit("INSERT INTO directdemocracy (channelid, messageid, lastupdated, secondannouncementsent) VALUES (?, ?, ?, ?)", [message.channel.id, message.id, floor(time()), 0])
 
     # Pings logic
     users = dbcursor.execute("SELECT * FROM users WHERE id != ?", [message.author.id]).fetchall() # Get all users except the author from db
@@ -252,20 +212,7 @@ async def on_message(message:discord.Message):
             else: await message.reply(stickers=[i for i in (await guild.fetch_stickers()) if i.name == content.removeprefix("$")], mention_author=False)
 
         await sleep(.5) # Delay between individual responses
-@client.event
-async def on_message_edit(before: discord.Message, after: discord.Message): # Logic for reminding the pingable role when a message in directdemocracy tagged channels is edited
-    if not channel_has_tag(after.channel.id, "directdemocracy") or before.content == after.content or not dbcursor.execute("SELECT * FROM directdemocracy WHERE messageid = ?", [after.id]).fetchone(): return
-
-    execute_and_commit(f"UPDATE directdemocracy SET lastupdated = lastupdated + {IDEA_EDIT_ADDITIONAl_SECONDS} WHERE messageid = ?", [after.id])
-    diff = '\n'.join([l for l in ndiff(before.content.splitlines(), after.content.splitlines()) if l.startswith('+') or l.startswith('-')])
     await (await after.fetch_thread()).send(f"{PINGABLE_ROLE} The original idea was edited:\n\n```diff\n{diff}\n```")
-@client.event
-async def on_reaction_add(reaction: discord.Reaction, user: discord.User): # Logic for removing unwanted reactions from messages in directdemocracy tagged channels
-    if (
-        channel_has_tag(reaction.message.channel.id, "directdemocracy") and
-        not user.bot and (not reaction.message.channel.permissions_for(user).send_messages or reaction.message.author == user)
-    ): await reaction.remove(user)
-
 @tree.error
 async def on_error(interaction: interactions.Interaction, err: discord.app_commands.AppCommandError): # On error, log to dev chat
     errorbed = discord.Embed(color=discord.Color.red(), title="I AM SHITTING MYSELF!1!1", description=f"""Details:
@@ -308,66 +255,6 @@ async def unarchive_threads(): # Unarchive threads with "keepalive" tag
 
         channel = await client.fetch_channel(channelid)
         if (type(channel)==discord.Thread and channel.archived): await unarchive_thread(channel)
-@tasks.loop(seconds=DEMOCRACY_SECOND_LOOP)
-async def directdemocracy_loop(): # directdemocracy tag logic
-    ideas = dbcursor.execute("SELECT * FROM directdemocracy").fetchall() # Get all uncompleted messages
-    for channelid, messageid, lastupdated, secondannouncementsent in ideas: # For uncompleted message
-        try: message = await (await client.fetch_channel(channelid)).fetch_message(messageid) # Get the message object
-        except NotFound: # If the message was removed, yeet it from the db
-            execute_and_commit("DELETE FROM directdemocracy WHERE messageid = ?", [messageid])
-            continue
-
-        if lastupdated+DEMOCRACY_UPDATE_SECONDS >= time(): continue # If the set number of seconds since the last update haven't yet passed, ignore the message
-
-        author = message.author # Get the author
-        reactions = message.reactions # Get the reactions
-        thread = await message.fetch_thread() # Get the thread underneath the message
-
-        # Count the positive and negative reactions
-        positives = 0
-        negatives = 0
-        for r in reactions:
-            users = [user async for user in r.users() if not user.bot and message.channel.permissions_for(user).send_messages and user!=author]
-
-            if str(r.emoji) == POSITIVE_EMOTE: positives = len(users)
-            elif str(r.emoji) == NEGATIVE_EMOTE: negatives = len(users)
-
-        if not positives and not negatives and not secondannouncementsent: # If there is no reactions, remind people to add them
-            await thread.send(f"{PINGABLE_ROLE} The poll for this idea has received no activity for a long time. If no votes will be added in the next {time_period_to_human_readable(DEMOCRACY_UPDATE_SECONDS)} - it will be automatically accepted.")
-            execute_and_commit("UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid])
-        elif negatives > positives: execute_and_commit("UPDATE directdemocracy SET secondannouncementsent = 1, lastupdated = ? WHERE messageid = ?", [floor(time()), messageid]) # If there is more negatives than positives, wait and don't send the reminder
-        else: # If there is more positives than negatives
-            execute_and_commit("DELETE FROM directdemocracy WHERE messageid = ?", [messageid]) # Mark as complete by deleting
-
-            await message.add_reaction("✅") # Add a confirming reaction
-            await thread.send(f"{PINGABLE_ROLE} Idea passed.") # Remind everyone that it has been passed
-            await thread.edit(locked=True) # Lock the thread
-
-            title, description = search(IDEA_REGEX, message.content).groups() # Get title and description using regex
-            title = strip_markdown(title) # Strip markdown from the title
-            description = sub(LINK_REGEX, "", description)
-            authortrello = dbcursor.execute(f"SELECT trello FROM users WHERE id = {author.id}").fetchone()[0] # Get author's trello
-            if authortrello: description += "\n\n---\n\nSuggested by @"+authortrello # Mention author if his trello is in the db
-
-            req = post("https://api.trello.com/1/cards", headers={"Accept": "application/json"}, params={ # Make a new card on trello
-                "key": getenv("TRELLO_KEY"),
-                "token": getenv("TRELLO_TOKEN"),
-
-                "idList": TRELLO_LIST_ID,
-                "name": title,
-                "desc": description 
-            })
-            if req.status_code!=200: # Log any errors
-                send_log_message(discord.Embed(title="Trello request failed", description=f"```\n{req.content}\n```", color=discord.Color.blue()))
-                return
-            for attachment in message.attachments + message.embeds:
-                post(f"https://api.trello.com/1/cards/{req.json()['id']}/attachments", headers={"Accept": "application/json"}, params={ # Transfer all of the attachments
-                    "key": getenv("TRELLO_KEY"),
-                    "token": getenv("TRELLO_TOKEN"),
-
-                    "url": attachment.url,
-                    "setCover": "false"
-                })
 
 # HELPER FUNCTIONS
 def add_user_to_data(user:discord.User) -> None: # Add a user to the sqlite db
