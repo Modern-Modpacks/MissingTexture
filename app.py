@@ -617,7 +617,7 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None): #
     selftz = dbcursor.execute(f"SELECT tz FROM users WHERE id = {interaction.user.id}").fetchone()
     timezone = dbcursor.execute(f"SELECT tz FROM users WHERE id = {user.id}").fetchone()
 
-    if not timezone: # If the timezone is not set, notify the user
+    if not timezone or not timezone[0]: # If the timezone is not set, notify the user
         await interaction.response.send_message(f"{user.display_name} hasn't set their timezone yet. If you want, ping them and tell them how to do so!", ephemeral=True)
         return
     timezone = timezone[0]
@@ -633,7 +633,7 @@ async def gettz(interaction:interactions.Interaction, user:discord.User=None): #
 **Name**: `{timezone}`
 **Abbreviation**: `{now.strftime("%Z")}`
 **UTC offset**: `{now.strftime("%z")}`"""
-        if selftz and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round((abs(now.replace(tzinfo=None)-datetime.now(tz(selftz[0])).replace(tzinfo=None)).seconds/3600)*100)/100}`"
+        if selftz and selftz[0] and user.id!=interaction.user.id: tzbed.description += f"\n**Offset from your timezone**: `{round((abs(now.replace(tzinfo=None)-datetime.now(tz(selftz[0])).replace(tzinfo=None)).seconds/3600)*100)/100}`"
 
         if i==0: # If it's the first second
             await interaction.response.send_message(embed=tzbed, ephemeral=True) # Send the response as a regular message
